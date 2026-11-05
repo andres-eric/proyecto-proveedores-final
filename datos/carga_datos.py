@@ -79,13 +79,10 @@ def obtener_datos_inspeccion():
     #url_api = "http://localhost:8086/api/consultainspeccion/transformardata_table_f"
     #url_api = "http://192.168.6.105:8081/api/consultainspeccion/transformardata_table_f"
     url_api= "http://192.168.6.105:8086/api/consultainspeccion/transformardata_table_f"
-
     datos_proveedores, intentos = realizar_peticion(url_api)
-
     if datos_proveedores is not None:
         print(f"Datos de inspección cargados correctamente. {len(datos_proveedores)} registros.")          
         df = pd.DataFrame(datos_proveedores)
-            
             # se filtra inspeccion nacional
         df = df[df["Nacion_importado"] == "nacional"]
         df["anio-mes"] = pd.to_datetime(df["Fecha_ingreso"]).dt.strftime("%Y-%m")
@@ -103,11 +100,8 @@ def obtener_datos_inspeccion_categoria():
     url_api= "http://192.168.6.105:8086/api/consultainspeccion/transformardata_table_f"
     #url_api_categoria="http://localhost:8085/api/v1/extractor/consulta_categorias"
     url_api_categoria="http://192.168.6.105:9091/api/v1/extractor/consulta_categorias"
-
-
     datos_proveedores, intentos = realizar_peticion(url_api)
     datos_categoria, intentos_categoria = realizar_peticion(url_api_categoria)
-
     if datos_proveedores is not None:
         print(f"Datos de inspección cargados correctamente. {len(datos_proveedores)} registros.")          
         df = pd.DataFrame(datos_proveedores)
@@ -121,9 +115,6 @@ def obtener_datos_inspeccion_categoria():
         df_f=df.merge(df_categoria, left_on="ID_Producto", right_on="PRTNUM_01", how="left")
 
         df_f=df_f[["Nombre_Proveedor","anio-mes", "ID_Producto","Nombre_Producto","categoria", "Cantidad_recivida"]]
-
-    
-
         return df_f
     return None
 
@@ -150,7 +141,6 @@ def obtener_datos_completos():
         right_on=["Nombre_Proveedor", "anio-mes"],
         how="left"
     )
-
     columnas_finales = [
         'proveedor', 'anio-mes', 'verde', 'amarilla', 'roja', 'negra', 'total', 
         'porcentajeCumplimientoVerde', 'cumplimientoCantidadEntregada', 
@@ -158,7 +148,6 @@ def obtener_datos_completos():
         'nivelServicioTotal', 'cantidadIngresada'
     ]
     df_total_ = df_total[columnas_finales].copy()
-    
     df_total_["Cantidad_recivida"] = df_total_["Cantidad_recivida"].fillna(0)
     
     df_total_ = df_total_.rename(
@@ -167,7 +156,6 @@ def obtener_datos_completos():
             "cantidadIngresada": "cantidad_ingresada",
         }
     )
-
     df_total_= df_total_.sort_values(by=['proveedor','anio-mes'], ascending=[True, True])
     return df_total_
 
@@ -193,6 +181,19 @@ def obtener_data_set_categoria():
     return None
 
 
+def obtener_data_set_primera_entrega():
+    #url_api="http://localhost:8085/api/v1/extractor/consulta_categorias"
+    url_api="http://192.168.6.105:9091/api/v1/extractor/consulta_primera_entrega"
+    
+    datos_proveedores,intentos=realizar_peticion(url_api)
+    if datos_proveedores is not None:
+        print(f"Datos de cantidad cargados correctamente. {len(datos_proveedores)} registros.")
+        df=pd.DataFrame(datos_proveedores)
+        df["anio-mes"] = pd.to_datetime(df["anio"].astype(str) + "-" + df["mes"].astype(str)).dt.strftime("%Y-%m")
+        return df
+    return None
+    
+
 def obtener_data_set_cantidad():
     #url_api="http://localhost:8085/api/v1/extractor/consulta_categorias"
     url_api="http://192.168.6.105:9091/api/v1/extractor/consulta_cantidad"
@@ -201,9 +202,9 @@ def obtener_data_set_cantidad():
     if datos_proveedores is not None:
         print(f"Datos de cantidad cargados correctamente. {len(datos_proveedores)} registros.")
         df=pd.DataFrame(datos_proveedores)
+        df["anio-mes"] = pd.to_datetime(df["anio"].astype(str) + "-" + df["mes"].astype(str)).dt.strftime("%Y-%m")
         return df
     return None
-
 
 
 if __name__ == "__main__":
@@ -212,5 +213,6 @@ if __name__ == "__main__":
     if datos is not None:
         print("\nMuestra de los datos obtenidos:")
    # print(datos.head())
-    print("cantidad", datos.columns)
+    #print("cantidad", datos.columns)
+    print(datos.head())
 
