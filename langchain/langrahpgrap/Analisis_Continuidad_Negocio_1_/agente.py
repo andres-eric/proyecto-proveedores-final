@@ -72,7 +72,6 @@ def nodo_carga_datos(state: EstadoModelo_resumen_1) -> dict:
     datos = datos_historicos(obtener_datos_completos())
     ultimo_mes_analisis=datos[0:1]
 
-    # str(): el estado se serializa a JSON en langgraph dev y los tipos de numpy no
     return {
         "mes_evaluado": str(ultimo_mes_analisis['anio-mes'].values[0]),
         "var_optimo": str(ultimo_mes_analisis['var_optimo'].values[0]),
@@ -93,8 +92,6 @@ def nodo_analisis(state: EstadoModelo_resumen_1) -> dict:
     var_optimo = state.get("var_optimo")
     tasa_riesgo = state.get("tasa_riesgo")
 
-
-
     prompt_template = PromptTemplate(
         input_variables=["mes_evaluado", "total_volumen", "variacion_volumen", "cumplimiento_optimo", "var_optimo", "tasa_riesgo"],
         template=template_resumen
@@ -109,6 +106,7 @@ def nodo_analisis(state: EstadoModelo_resumen_1) -> dict:
         "var_optimo": var_optimo,
         "tasa_riesgo": tasa_riesgo
     })
+    
     
     return {
         "borrador_continuidad": resultado,
@@ -182,22 +180,22 @@ def ejecutar_reporte() -> EstadoModelo_resumen_1:
     return grafo.invoke({})
 
 
-    
-    
+
+
     
    
-if __name__ == "__main__":
-    print("ejecutando el agente...")
-    estado_final = ejecutar_reporte()
+# if __name__ == "__main__":
+#     print("ejecutando el agente...")
+#     estado_final = ejecutar_reporte()
 
-    texto_final_continuidad = estado_final["texto_final_continuidad"][-1] if estado_final.get("texto_final_continuidad") else estado_final.get("borrador_continuidad", "")
+#     texto_final_continuidad = estado_final["texto_final_continuidad"][-1] if estado_final.get("texto_final_continuidad") else estado_final.get("borrador_continuidad", "")
 
-    # Imprimir el texto final
-    print("\n" + "="*80)
-    print("TEXTO FINAL DEL ANÁLISIS:")
-    print("="*80)
-    print(texto_final_continuidad)
-    print("="*80)
+#     # Imprimir el texto final
+#     print("\n" + "="*80)
+#     print("TEXTO FINAL DEL ANÁLISIS:")
+#     print("="*80)
+#     print(texto_final_continuidad)
+#     print("="*80)
 
 
 

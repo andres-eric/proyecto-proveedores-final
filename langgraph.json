@@ -5,6 +5,7 @@
   "graphs": {
     "continuidad_negocio_1": "./langchain/langrahpgrap/Analisis_Continuidad_Negocio_1_/agente.py:grafo",
     "evaluacion_riesgo_2": "./langchain/langrahpgrap/Analisis_evaluacion_Riesgo_2/agente.py:grafo",
+    "evaluacion_cantidad_3": "./langchain/langrahpgrap/Analisis_evaluacion_cantidad_3/agente.py:grafo",
     "nodo_padre": "./langchain/langrahpgrap/Nodo_Padre/agente.py:grafo"
   },
   "env": ".env"

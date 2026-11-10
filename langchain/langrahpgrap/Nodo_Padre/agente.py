@@ -50,6 +50,7 @@ def cargar_grafo(carpeta: str):
 
 grafo_continuidad = cargar_grafo("Analisis_Continuidad_Negocio_1_")
 grafo_riesgo = cargar_grafo("Analisis_evaluacion_Riesgo_2")
+grafo_cantidad = cargar_grafo("Analisis_evaluacion_cantidad_3")
 
 
 class EstadoFlujo(TypedDict, total=False):
@@ -65,7 +66,7 @@ class EstadoFlujo(TypedDict, total=False):
     tiene_errores_continuidad: bool
     notas_auditor_continuidad: str
     borrador_continuidad: str
-
+    
 
     datos_logistica: str
     datos_calidad: str
@@ -75,15 +76,36 @@ class EstadoFlujo(TypedDict, total=False):
     notas_auditor_riesgo: str
 
 
+
+    mes_nombre: str
+    total: str
+    cumpleCantidad: str
+    noCumpleCantidad: str
+    porcentajeCumpleCantidad: str
+    variacion_pp_cumplimiento_cantidad: str
+
+    
+    promedio_periodo: str
+    meses_consecutivos_mejora: str
+    posicion_promedio: str
+    mes_nombre_inicio: str
+    borrador_cantidad: str
+    texto_final_cantidad: list
+    tiene_errores_cantidad: bool
+    notas_auditor_cantidad: str
+
+
 builder = StateGraph(EstadoFlujo)
 
 builder.add_node("continuidad_negocio", grafo_continuidad)
 builder.add_node("riesgo", grafo_riesgo)
+builder.add_node("cantidad", grafo_cantidad)
 
 
 builder.add_edge(START, "continuidad_negocio")
 builder.add_edge("continuidad_negocio", "riesgo")
-builder.add_edge("riesgo", END)
+builder.add_edge("riesgo", "cantidad")
+builder.add_edge("cantidad", END)
 
 grafo = builder.compile()
 

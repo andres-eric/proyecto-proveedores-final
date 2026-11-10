@@ -69,7 +69,7 @@ def _titulo_seccion(texto, ancho, color_barra, estilo):
     ]))
     return t
 
-def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barras=None, kpis=None, periodo=None, grafica_tornado=None, texto_modulo_2=None):
+def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barras=None, kpis=None, periodo=None, grafica_tornado=None, texto_modulo_2=None, grafica_cantidad=None, texto_modulo_3=None):
     """Genera un reporte PDF con layout tipo Dashboard Moderno."""
     if not REPORTLAB_INSTALLED:
         print("\n" + "!" * 60)
@@ -280,6 +280,28 @@ def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barr
                 img_w, img_h = img_reader.getSize()
                 ancho_d, alto_d = _escalar_imagen(img_w, img_h, max_ancho=ancho_pagina, max_alto=520)
                 img = Image(grafica_tornado, width=ancho_d, height=alto_d)
+                img.hAlign = 'CENTER'
+                flowables.append(img)
+            except Exception as e:
+                flowables.append(Paragraph(f"<i>Error cargando gráfica: {str(e)}</i>", styles['CustomCaption']))
+
+    # ── MÓDULO 3 (página nueva): título → síntesis del análisis (IA) → gráfico ──
+    if grafica_cantidad or texto_modulo_3:
+        flowables.append(PageBreak())
+
+        flowables.append(_titulo_seccion("3. Cumplimiento de Cantidad", ancho_pagina, color_secundario, custom_h2))
+        flowables.append(Spacer(1, 12))
+
+        if texto_modulo_3:
+            flowables.extend(parse_simple_markdown(texto_modulo_3.strip(), styles))
+            flowables.append(Spacer(1, 10))
+
+        if grafica_cantidad and os.path.exists(grafica_cantidad):
+            try:
+                img_reader = ImageReader(grafica_cantidad)
+                img_w, img_h = img_reader.getSize()
+                ancho_d, alto_d = _escalar_imagen(img_w, img_h, max_ancho=ancho_pagina, max_alto=300)
+                img = Image(grafica_cantidad, width=ancho_d, height=alto_d)
                 img.hAlign = 'CENTER'
                 flowables.append(img)
             except Exception as e:

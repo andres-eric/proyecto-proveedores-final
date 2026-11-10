@@ -19,26 +19,29 @@ from etl.datos_analisis_resumen_general import datos_historicos
 import importlib.util
 
 
-ruta_agent = ROOT_DIR / "langchain" / "Analisis_Continuidad_Negocio_1" / "resumen_agent.py"
-spec = importlib.util.spec_from_file_location("resumen_agent", ruta_agent)
-resumen_agent = importlib.util.module_from_spec(spec)
-sys.modules["resumen_agent"] = resumen_agent
-spec.loader.exec_module(resumen_agent)
-analisis_1 = resumen_agent.analisis_1
-
-ruta_agent_2 = ROOT_DIR / "langchain" / "Analisis_evaluacion_Riesgo_2" / "Analisis_2.py"
-spec_2 = importlib.util.spec_from_file_location("analisis_2_agent", ruta_agent_2)
-analisis_2_agent = importlib.util.module_from_spec(spec_2)
-sys.modules["analisis_2_agent"] = analisis_2_agent
-spec_2.loader.exec_module(analisis_2_agent)
-analisis_2 = analisis_2_agent.analisis_2
+# Cargar el grafo padre de LangGraph (une continuidad + riesgo)
+ruta_padre = ROOT_DIR / "langchain" / "langrahpgrap" / "Nodo_Padre" / "agente.py"
+spec = importlib.util.spec_from_file_location("nodo_padre", ruta_padre)
+nodo_padre = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(nodo_padre)
+grafo_padre = nodo_padre.grafo
 
 
 from graficos.graficas_resumen import generar_imagen_tarjetas_kpi_desde_df, graficar_distribucion_volumen_mes
 from graficos.graficas_modulo2 import graficar_modulo_2
+from graficos.graficas_analisis_cantidad import graficar_analisis_cantidad
 
 
 from pdf_generator.pdf_generator import generar_pdf_reporte
+
+
+def extraer_texto(estado, clave_final, clave_borrador):
+    # Saca el texto final del resultado del grafo; si no existe, usa el borrador
+    texto_final = estado.get(clave_final)
+    if texto_final:
+        return texto_final[0]
+    return estado.get(clave_borrador, "")
+
 
 def ejecutar_pipeline():
     print("Iniciando pipeline de generación de reporte...")
@@ -62,10 +65,15 @@ def ejecutar_pipeline():
     ruta_m2_tornado = str(ROOT_DIR / "modulo2_tornado.png")
     graficar_modulo_2(ruta_m2_tornado)
 
+    ruta_m3_cantidad = str(ROOT_DIR / "modulo3_cantidad.png")
+    graficar_analisis_cantidad(ruta_m3_cantidad)
 
-    print("\n[3/4] Ejecutando agentes LangChain (Generación de texto analítico)...")
-    texto_agente = analisis_1(datos=ultimo_mes)
-    texto_modulo_2 = analisis_2(obtener_datos_kpi_detalle(), obtener_datos_inspeccion_categoria())
+
+    print("\n[3/4] Ejecutando grafo LangGraph (Generación de texto analítico)...")
+    estado_final = grafo_padre.invoke({})
+    texto_agente = extraer_texto(estado_final, "texto_final_continuidad", "borrador_continuidad")
+    texto_modulo_2 = extraer_texto(estado_final, "texto_final_riesgo", "borrador_riesgo")
+    texto_modulo_3 = extraer_texto(estado_final, "texto_final_cantidad", "borrador_cantidad")
     print("  -> Textos generados por el LLM exitosamente.")
 
 
@@ -101,6 +109,8 @@ def ejecutar_pipeline():
         periodo=periodo,
         grafica_tornado=ruta_m2_tornado,
         texto_modulo_2=texto_modulo_2,
+        grafica_cantidad=ruta_m3_cantidad,
+        texto_modulo_3=texto_modulo_3,
     )
 
     if exito:
