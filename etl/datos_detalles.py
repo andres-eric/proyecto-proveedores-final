@@ -19,16 +19,16 @@ from datos.carga_datos import obtener_datos_inspeccion_categoria
 from datos.carga_datos import obtener_data_set_categoria
 
 
-# datos = obtener_datos_kpi_detalle()
-# datos_completos=obtener_datos_completos()
-# datos_inspeccion=obtener_datos_inspeccion()
-# datos_completos_inspeccion=obtener_datos_inspeccion_categoria()
+datos = obtener_datos_kpi_detalle()
+datos_completos=obtener_datos_completos()
+datos_inspeccion=obtener_datos_inspeccion()
+datos_completos_inspeccion=obtener_datos_inspeccion_categoria()
 
 
 
 
-# if datos_completos is None:
-#     raise RuntimeError("No se pudieron cargar los datos. Verifica que la API en 192.168.6.105:8090 esté disponible.")
+if datos_completos is None:
+    raise RuntimeError("No se pudieron cargar los datos. Verifica que la API en 192.168.6.105:8090 esté disponible.")
 
 
 def cambiar_nombre_head(df):
@@ -180,12 +180,12 @@ def porcentaje_retrasos(datos):
 
 
 
-# inspeccion,categoria = datos_modulo_2(datos, datos_completos_inspeccion)
+inspeccion,categoria = datos_modulo_2(datos, datos_completos_inspeccion)
 
 
-
+print(categoria)
 # print(convertir_df_a_contexto_llm(inspeccion))
-# print(convertir_df_a_contexto_llm(categoria))
+print(convertir_df_a_contexto_llm(categoria))
 
 
 

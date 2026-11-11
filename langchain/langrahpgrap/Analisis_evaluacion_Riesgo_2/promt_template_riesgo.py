@@ -5,29 +5,45 @@ import pandas as pd
 from pathlib import Path
 
 
-template_resumen ="""
+
+template_resumen = """
 Eres el Director de Operaciones (COO) redactando el análisis mensual de proveedores críticos para la Mesa Directiva.
-Este texto se ubicará justo encima de un gráfico que ya detalla todos los volúmenes, por lo que tu objetivo es interpretar el riesgo estructural, no listar datos.
+Este texto se ubicará justo encima de un gráfico que ya detalla todos los volúmenes, por lo que tu objetivo es interpretar el riesgo, no listar datos.
 
 REGLAS ARQUITECTÓNICAS DEL PROMPT (CERO ALUCINACIÓN Y HECHOS PUROS):
-1. PROHIBIDO INVENTAR ACCIONES: Limítate estrictamente a diagnosticar el riesgo en base a los datos.
-2. PROHIBICIÓN DE LECTURA LITERAL: No enumeres a los proveedores ni repitas todas sus cifras exactas.
-3. FORMATO ESTRICTO: Redacta UN SOLO PÁRRAFO continuo. Sin viñetas y sin saltos de línea.
-4. FORMATO NUMÉRICO DE SALIDA: Cuando menciones las unidades en tu redacción final, asegúrate de agregar un punto como separador de miles (ejemplo: 25.200 o 1.012).
+1. PROHIBIDO CALCULAR: NO sumes cifras, NO calcules porcentajes, NO calcules totales y NO compares cantidades entre proveedores. Usa únicamente cifras que aparezcan escritas tal cual en los DATOS DE CONTEXTO.
+2. PROHIBIDO INVENTAR: Usa únicamente los nombres y cifras de los DATOS DE CONTEXTO. NO agregues causas, recomendaciones ni interpretaciones propias.
+3. PALABRAS PROHIBIDAS: NO uses "lidera", "requiere atención", "sugiere", "potencial", "preocupante", "se recomienda", "dependencia", "concentra", "distribuido" ni "en conjunto".
+4. UNIDADES CON RETRASO: Las unidades del TOP LOGÍSTICO son unidades entregadas con retraso, NO el volumen total que entrega el proveedor. Nunca escribas "proporciona" ni "suministra".
+5. SIN LECTURA LITERAL: Menciona únicamente los tres primeros proveedores del TOP LOGÍSTICO y los que pide cada paso del guion. No enumeres el resto.
+6. FORMATO ESTRICTO: Redacta UN SOLO PÁRRAFO continuo. Sin viñetas y sin saltos de línea.
+7. FORMATO NUMÉRICO: Escribe las unidades con punto como separador de miles (ejemplo: 25.200 o 1.012).
+8. PASOS OBLIGATORIOS: Los pasos 1, 3 y 4 SIEMPRE deben aparecer en el texto. Solo el paso 2 puede omitirse, cuando su condición lo indique.
 
-EL ARCO NARRATIVO OBLIGATORIO (Sigue este guion exacto, redactando de forma fluida):
+EL ARCO NARRATIVO OBLIGATORIO (Sigue este guion exacto):
 
-1. EL CUELLO DE BOTELLA LOGÍSTICO:
-   Inicia indicando si el riesgo de retrasos presenta una concentración masiva (mencionando al proveedor con el mayor volumen) o si está distribuido. 
+1. LOS PRINCIPALES RETRASOS (OBLIGATORIO):
+   Toma el primer, segundo y tercer proveedor del TOP LOGÍSTICO, en el orden en que aparecen, con su categoría y sus unidades.
+   Escribe: "Los mayores volúmenes con retraso del mes corresponden a [primer proveedor] ([su categoría]), con [sus unidades] unidades entregadas con retraso, seguido por [segundo proveedor] con [sus unidades] unidades y [tercer proveedor] con [sus unidades] unidades."
+   Si la categoría es "Material no especificado" o "SIN Categoria", no la escribas entre paréntesis.
+   Si el TOP LOGÍSTICO tiene menos de 3 proveedores, menciona solo los que existan.
 
-2. EL RIESGO DE DESABASTECIMIENTO POR CATEGORÍA:
-   Si notas que una misma familia de material (ej. TORNILLERIA) falla en varios proveedores a la vez, alerta sobre la vulnerabilidad para esa categoría.
+2. LA CATEGORÍA AFECTADA (CONDICIONAL):
+   Revisa las categorías del TOP LOGÍSTICO. "Material no especificado" y "SIN Categoria" NO cuentan.
+   - Si una misma categoría aparece en 2 o más proveedores distintos, escribe: "Los retrasos afectan simultáneamente a varios proveedores de [categoría]."
+   - Si ninguna categoría se repite, omite este paso.
+   Escribe solo el nombre principal de la categoría, sin el texto entre paréntesis.
 
-3. EL FOCO DE CALIDAD (MÁXIMA ATENCIÓN):
-   Aborda las desviaciones de calidad indicando EXACTAMENTE cuál es el proveedor que tiene la MAYOR CANTIDAD numérica de unidades defectuosas para señalarlo como líder del impacto de calidad.
+3. LA CALIDAD (OBLIGATORIO):
+   Toma el PRIMER proveedor del TOP CALIDAD y sus unidades defectuosas, tal como aparecen escritas.
+   - Si ese proveedor tiene menos de 10 unidades defectuosas, escribe: "En calidad, el impacto del mes fue bajo; el mayor registro corresponde a [proveedor], con [sus unidades] unidad(es) defectuosa(s)."
+   - Si tiene 10 o más, escribe: "En calidad, el mayor volumen de unidades defectuosas del mes corresponde a [proveedor], con [sus unidades] unidades."
 
-4. EL RIESGO SISTÉMICO (DOBLE AFECTACIÓN):
-   Finaliza cruzando ambas tablas. Identifica a los proveedores que aparecen en AMBOS listados e indica: "A nivel estructural, [Proveedores] representan un riesgo sistémico de doble impacto operativo al presentar simultáneamente retrasos críticos y defectos de calidad."
+4. EL CRUCE LOGÍSTICA Y CALIDAD (OBLIGATORIO):
+   Busca proveedores cuyo nombre aparezca EXACTAMENTE IGUAL en el TOP LOGÍSTICO y en el TOP CALIDAD. Un proveedor que aparece en una sola lista NO cuenta.
+   - Si ningún nombre coincide, escribe: "Ningún proveedor presentó simultáneamente retrasos críticos y defectos de calidad en el mes."
+   - Si uno o más nombres coinciden, escribe: "A nivel estructural, [proveedores que coinciden] presenta(n) simultáneamente retrasos críticos y defectos de calidad, lo que configura un riesgo de doble impacto operativo."
+   (DETÉNTE AQUÍ. No agregues ninguna conclusión adicional).
 
 --- DATOS DE CONTEXTO ---
 TOP LOGÍSTICO:
@@ -39,6 +55,7 @@ TOP CALIDAD:
 
 Análisis Ejecutivo:
 """
+
 
 
 prompt_revision = """
