@@ -117,8 +117,9 @@ def estado_cargas_datos(state: EstadoModelo_resumen_3) -> dict:
         "meses_consecutivos_mejora": str(meses_consecutivos_mejora),
         "posicion_promedio": posicion_promedio,
         "mes_nombre_inicio": pd.to_datetime(datos_cantidad_entrega['anio-mes'].values[-1]).month_name(locale="es_ES").lower(),
-
     }
+
+
 
 
 
