@@ -42,6 +42,8 @@ os.chdir(ROOT_DIR)  # el backend resuelve .env y rutas relativas desde la raíz 
 RUTA_KPIS = str(ROOT_DIR / "tarjetas_ejecutivas.png")
 RUTA_BARRAS = str(ROOT_DIR / "volumen_total_mes.png")
 RUTA_M2_TORNADO = str(ROOT_DIR / "modulo2_tornado.png")
+RUTA_M3_CANTIDAD = str(ROOT_DIR / "modulo3_cantidad.png")
+RUTA_M3_PROVEEDORES = str(ROOT_DIR / "modulo3_proveedores.png")
 RUTA_PDF = ROOT_DIR / "archivos_pdf" / "Reporte_Operativo_Pipeline.pdf"
 
 VELOCIDAD_ESCRITURA = 0.05  # segundos por palabra en el efecto máquina de escribir
@@ -78,12 +80,19 @@ def cargar_backend() -> dict:
     from etl.datos_analisis_resumen_general import datos_historicos
     from graficos.graficas_resumen import generar_imagen_tarjetas_kpi_desde_df, graficar_distribucion_volumen_mes
     from graficos.graficas_modulo2 import graficar_modulo_2
-    from pdf_generator.pdf_generator import generar_pdf_reporte
+    from graficos.graficas_analisis_cantidad import graficar_analisis_cantidad
+    from graficos.graficas_modulo3 import graficar_modulo_3_desde_datos
+    from pdf_generator.pdf_generator import generar_pdf_reporte, construir_kpis_cantidad
 
     resumen_agent = _cargar_modulo_desde_archivo(
         "resumen_agent", ROOT_DIR / "langchain" / "Analisis_Continuidad_Negocio_1" / "resumen_agent.py")
     analisis_2_agent = _cargar_modulo_desde_archivo(
         "analisis_2_agent", ROOT_DIR / "langchain" / "Analisis_evaluacion_Riesgo_2" / "Analisis_2.py")
+    # Módulo 3: agentes LangGraph de cantidad (resumen) y de proveedores (detalle)
+    agente_cantidad = _cargar_modulo_desde_archivo(
+        "agente_cantidad", ROOT_DIR / "langchain" / "langrahpgrap" / "Analisis_evaluacion_cantidad_3" / "agente.py")
+    agente_cantidad_detalle = _cargar_modulo_desde_archivo(
+        "agente_cantidad_detalle", ROOT_DIR / "langchain" / "langrahpgrap" / "Analisis_evaluacion_cantidad_3 _detalle" / "agente.py")
 
     return {
         "obtener_datos_completos": obtener_datos_completos,
@@ -93,6 +102,11 @@ def cargar_backend() -> dict:
         "generar_imagen_tarjetas_kpi_desde_df": generar_imagen_tarjetas_kpi_desde_df,
         "graficar_distribucion_volumen_mes": graficar_distribucion_volumen_mes,
         "graficar_modulo_2": graficar_modulo_2,
+        "graficar_analisis_cantidad": graficar_analisis_cantidad,
+        "graficar_modulo_3_desde_datos": graficar_modulo_3_desde_datos,
+        "grafo_cantidad": agente_cantidad.grafo,
+        "grafo_cantidad_detalle": agente_cantidad_detalle.grafo,
+        "construir_kpis_cantidad": construir_kpis_cantidad,
         "analisis_1": resumen_agent.analisis_1,
         "analisis_2": analisis_2_agent.analisis_2,
         "generar_pdf_reporte": generar_pdf_reporte,
@@ -134,6 +148,10 @@ def ejecutar_etl(status) -> dict:
     datos_inspeccion = backend["obtener_datos_inspeccion_categoria"]()
     backend["graficar_modulo_2"](RUTA_M2_TORNADO)
 
+    status.write("&nbsp;&nbsp;&nbsp;&nbsp;↳ Graficando cumplimiento de cantidad y proveedores con faltantes...")
+    backend["graficar_analisis_cantidad"](RUTA_M3_CANTIDAD)
+    backend["graficar_modulo_3_desde_datos"](RUTA_M3_PROVEEDORES)
+
     status.write("✨ **Gráficas creadas en la raíz del proyecto exitosamente.**")
 
     return {
@@ -152,11 +170,26 @@ def ejecutar_motor_ia(etl: dict) -> dict:
     Llama a los agentes LangChain reales. Retorna:
       - texto_1: resumen ejecutivo de continuidad (analisis_1)
       - texto_2: análisis de proveedores críticos (analisis_2)
+      - texto_3: resumen de cumplimiento de cantidad (agente de cantidad)
+      - texto_3_proveedores: proveedores con incumplimiento de cantidad (agente de detalle)
+      - kpis_cantidad: tarjetas de la sección 3, con los mismos valores que usa el agente
     """
     backend = cargar_backend()
     texto_1 = backend["analisis_1"](datos=etl["ultimo_mes"])
     texto_2 = backend["analisis_2"](etl["datos_kpi_detalle"], etl["datos_inspeccion"])
-    return {"texto_1": texto_1, "texto_2": texto_2}
+
+    estado_cantidad = backend["grafo_cantidad"].invoke({})
+    finales = estado_cantidad.get("texto_final_cantidad")
+    texto_3 = finales[-1] if finales else estado_cantidad.get("borrador_cantidad", "")
+    estado_detalle = backend["grafo_cantidad_detalle"].invoke({})
+
+    return {
+        "texto_1": texto_1,
+        "texto_2": texto_2,
+        "texto_3": texto_3,
+        "texto_3_proveedores": estado_detalle.get("texto_analisis_3"),
+        "kpis_cantidad": backend["construir_kpis_cantidad"](estado_cantidad),
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -197,6 +230,11 @@ def generar_informe_pdf(etl: dict, ia: dict) -> bytes:
         periodo=periodo,
         grafica_tornado=RUTA_M2_TORNADO,
         texto_modulo_2=ia["texto_2"],
+        grafica_cantidad=RUTA_M3_CANTIDAD,
+        texto_modulo_3=ia.get("texto_3"),
+        kpis_cantidad=ia.get("kpis_cantidad"),
+        grafica_proveedores_cantidad=RUTA_M3_PROVEEDORES,
+        texto_proveedores_cantidad=ia.get("texto_3_proveedores"),
     )
     if not exito or not RUTA_PDF.exists():
         raise RuntimeError("El generador de PDF no pudo crear el informe. Revisa la consola del servidor.")
@@ -377,8 +415,12 @@ def mostrar_resultados_ia(ia: dict, animar: bool):
     secciones = [
         ("Resumen ejecutivo · Continuidad de negocio", ia["texto_1"]),
         ("Análisis de proveedores críticos", ia["texto_2"]),
+        ("Cumplimiento de cantidad", ia.get("texto_3")),
+        ("Proveedores con incumplimiento de cantidad", ia.get("texto_3_proveedores")),
     ]
     for titulo, texto in secciones:
+        if not texto:
+            continue
         with st.chat_message("ai", avatar="🧠"):
             st.markdown(f'<span class="ia-badge">{titulo.upper()}</span>', unsafe_allow_html=True)
             if animar:
@@ -443,6 +485,9 @@ if ejecutar:
     with st.expander("📊 Ver visualizaciones generadas para el reporte"):
         st.image(RUTA_BARRAS, caption="Evolución del cumplimiento de entregas", use_container_width=True)
         st.image(RUTA_M2_TORNADO, caption="Proveedores críticos: retrasos logísticos vs. defectos de calidad",
+                 use_container_width=True)
+        st.image(RUTA_M3_CANTIDAD, caption="Evolución del cumplimiento de cantidad", use_container_width=True)
+        st.image(RUTA_M3_PROVEEDORES, caption="Proveedores con órdenes con faltantes: mes evaluado vs. acumulado",
                  use_container_width=True)
 
     # ── FASE 2: MOTOR IA ──────────────────────────────────────────────────────

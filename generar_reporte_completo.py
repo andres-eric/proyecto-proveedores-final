@@ -30,9 +30,10 @@ grafo_padre = nodo_padre.grafo
 from graficos.graficas_resumen import generar_imagen_tarjetas_kpi_desde_df, graficar_distribucion_volumen_mes
 from graficos.graficas_modulo2 import graficar_modulo_2
 from graficos.graficas_analisis_cantidad import graficar_analisis_cantidad
+from graficos.graficas_modulo3 import graficar_modulo_3_desde_datos
 
 
-from pdf_generator.pdf_generator import generar_pdf_reporte
+from pdf_generator.pdf_generator import generar_pdf_reporte, construir_kpis_cantidad
 
 
 def extraer_texto(estado, clave_final, clave_borrador):
@@ -68,12 +69,17 @@ def ejecutar_pipeline():
     ruta_m3_cantidad = str(ROOT_DIR / "modulo3_cantidad.png")
     graficar_analisis_cantidad(ruta_m3_cantidad)
 
+    ruta_m3_proveedores = str(ROOT_DIR / "modulo3_proveedores.png")
+    graficar_modulo_3_desde_datos(ruta_m3_proveedores)
+
 
     print("\n[3/4] Ejecutando grafo LangGraph (Generación de texto analítico)...")
     estado_final = grafo_padre.invoke({})
     texto_agente = extraer_texto(estado_final, "texto_final_continuidad", "borrador_continuidad")
     texto_modulo_2 = extraer_texto(estado_final, "texto_final_riesgo", "borrador_riesgo")
     texto_modulo_3 = extraer_texto(estado_final, "texto_final_cantidad", "borrador_cantidad")
+    texto_proveedores_cantidad = estado_final.get("texto_analisis_3")   # es un texto, no una lista
+    kpis_cantidad = construir_kpis_cantidad(estado_final)
     print("  -> Textos generados por el LLM exitosamente.")
 
 
@@ -111,6 +117,9 @@ def ejecutar_pipeline():
         texto_modulo_2=texto_modulo_2,
         grafica_cantidad=ruta_m3_cantidad,
         texto_modulo_3=texto_modulo_3,
+        kpis_cantidad=kpis_cantidad,
+        grafica_proveedores_cantidad=ruta_m3_proveedores,
+        texto_proveedores_cantidad=texto_proveedores_cantidad,
     )
 
     if exito:

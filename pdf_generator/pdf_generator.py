@@ -69,7 +69,29 @@ def _titulo_seccion(texto, ancho, color_barra, estilo):
     ]))
     return t
 
-def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barras=None, kpis=None, periodo=None, grafica_tornado=None, texto_modulo_2=None, grafica_cantidad=None, texto_modulo_3=None):
+def construir_kpis_cantidad(estado):
+    """Tarjetas KPI de la sección 3 a partir del estado del agente de cantidad.
+    Usa los mismos valores con los que el agente redacta el resumen, para que tarjetas y texto coincidan.
+    Retorna None si faltan datos (la sección se omite sin romper el PDF)."""
+    try:
+        variacion = float(estado["variacion_pp_cumplimiento_cantidad"])
+        delta = "" if variacion != variacion else f"{variacion:+.2f} pp vs mes anterior"   # variacion != variacion => NaN
+    except (KeyError, TypeError, ValueError):
+        delta = ""
+    try:
+        return [
+            {'titulo': 'Cumplimiento de cantidad', 'valor': f"{estado['porcentajeCumpleCantidad']}%", 'delta': delta},
+            {'titulo': 'Órdenes con faltantes', 'valor': f"{estado['noCumpleCantidad']}",
+             'delta': f"de {estado['total']} órdenes cerradas"},
+            {'titulo': 'Promedio del período', 'valor': f"{estado['promedio_periodo']}%",
+             'delta': f"{estado['mes_nombre_inicio']} a {estado['mes_nombre']}"},
+        ]
+    except KeyError:
+        return None
+
+
+def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barras=None, kpis=None, periodo=None, grafica_tornado=None, texto_modulo_2=None, grafica_cantidad=None, texto_modulo_3=None,
+                        kpis_cantidad=None, grafica_proveedores_cantidad=None, texto_proveedores_cantidad=None):
     """Genera un reporte PDF con layout tipo Dashboard Moderno."""
     if not REPORTLAB_INSTALLED:
         print("\n" + "!" * 60)
@@ -194,11 +216,12 @@ def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barr
     flowables.append(_titulo_seccion("INDICADORES CLAVE DEL PERIODO", ancho_pagina, color_secundario, custom_h2))
     flowables.append(Spacer(1, 14))
 
-    if kpis:
+    def _tarjetas_kpi(lista_kpis):
+        """Fila de tres tarjetas KPI vectoriales (la usan la página 1 y la sección 3)."""
         gap = 10
         ancho_card = (ancho_pagina * 0.84 - 2 * gap) / 3.0
         celdas = []
-        for k in kpis:
+        for k in lista_kpis:
             color_d = color_secundario
             contenido = [
                 Paragraph(k['titulo'].upper(), style_kpi_titulo),
@@ -215,7 +238,7 @@ def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barr
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ]
-        for idx, k in enumerate(kpis):
+        for idx, k in enumerate(lista_kpis):
             c = idx * 2
             estilo += [
                 ('BACKGROUND', (c, 0), (c, 0), color_fondo_card),
@@ -223,7 +246,22 @@ def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barr
                 ('LINEABOVE', (c, 0), (c, 0), 1.5, color_acento),
             ]
         tabla_kpi.setStyle(TableStyle(estilo))
-        flowables.append(tabla_kpi)
+        return tabla_kpi
+
+    def _imagen(ruta, max_alto, etiqueta_error):
+        """Imagen centrada y escalada al ancho de página; si falla, deja una nota en cursiva."""
+        try:
+            img_reader = ImageReader(ruta)
+            img_w, img_h = img_reader.getSize()
+            ancho_d, alto_d = _escalar_imagen(img_w, img_h, max_ancho=ancho_pagina, max_alto=max_alto)
+            img = Image(ruta, width=ancho_d, height=alto_d)
+            img.hAlign = 'CENTER'
+            return img
+        except Exception as e:
+            return Paragraph(f"<i>Error cargando {etiqueta_error}: {str(e)}</i>", styles['CustomCaption'])
+
+    if kpis:
+        flowables.append(_tarjetas_kpi(kpis))
     elif ruta_kpis and os.path.exists(ruta_kpis):
         try:
             img_reader = ImageReader(ruta_kpis)
@@ -285,27 +323,44 @@ def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barr
             except Exception as e:
                 flowables.append(Paragraph(f"<i>Error cargando gráfica: {str(e)}</i>", styles['CustomCaption']))
 
-    # ── MÓDULO 3 (página nueva): título → síntesis del análisis (IA) → gráfico ──
-    if grafica_cantidad or texto_modulo_3:
+    # ── MÓDULO 3, página A: resumen de cantidad (misma estructura que la página 1) ──
+    # grafica_cantidad = evolución mensual (modulo3_cantidad.png); texto_modulo_3 = resumen ejecutivo del agente
+    hay_grafica_cantidad = bool(grafica_cantidad) and os.path.exists(grafica_cantidad)
+    if (kpis_cantidad and len(kpis_cantidad) == 3) or hay_grafica_cantidad or texto_modulo_3:
         flowables.append(PageBreak())
 
         flowables.append(_titulo_seccion("3. Cumplimiento de Cantidad", ancho_pagina, color_secundario, custom_h2))
-        flowables.append(Spacer(1, 12))
+        flowables.append(Spacer(1, 14))
+
+        if kpis_cantidad and len(kpis_cantidad) == 3:
+            flowables.append(_tarjetas_kpi(kpis_cantidad))
+            flowables.append(Spacer(1, 16))
+
+        if hay_grafica_cantidad:
+            flowables.append(_titulo_seccion("EVOLUCIÓN DEL CUMPLIMIENTO DE CANTIDAD", ancho_pagina, color_secundario, custom_h2))
+            flowables.append(Spacer(1, 14))
+            flowables.append(_imagen(grafica_cantidad, 235, "gráfica de cantidad"))
+            flowables.append(Spacer(1, 30))
 
         if texto_modulo_3:
+            flowables.append(_titulo_seccion("RESUMEN EJECUTIVO", ancho_pagina, color_secundario, custom_h2))
+            flowables.append(Spacer(1, 14))
             flowables.extend(parse_simple_markdown(texto_modulo_3.strip(), styles))
+
+    # ── MÓDULO 3, página B: proveedores (misma estructura que la página 2) ──
+    hay_grafica_proveedores = bool(grafica_proveedores_cantidad) and os.path.exists(grafica_proveedores_cantidad)
+    if hay_grafica_proveedores or texto_proveedores_cantidad:
+        flowables.append(PageBreak())
+
+        flowables.append(_titulo_seccion("3.1 Proveedores con Incumplimiento de Cantidad", ancho_pagina, color_secundario, custom_h2))
+        flowables.append(Spacer(1, 12))
+
+        if texto_proveedores_cantidad:
+            flowables.extend(parse_simple_markdown(texto_proveedores_cantidad.strip(), styles))
             flowables.append(Spacer(1, 10))
 
-        if grafica_cantidad and os.path.exists(grafica_cantidad):
-            try:
-                img_reader = ImageReader(grafica_cantidad)
-                img_w, img_h = img_reader.getSize()
-                ancho_d, alto_d = _escalar_imagen(img_w, img_h, max_ancho=ancho_pagina, max_alto=300)
-                img = Image(grafica_cantidad, width=ancho_d, height=alto_d)
-                img.hAlign = 'CENTER'
-                flowables.append(img)
-            except Exception as e:
-                flowables.append(Paragraph(f"<i>Error cargando gráfica: {str(e)}</i>", styles['CustomCaption']))
+        if hay_grafica_proveedores:
+            flowables.append(_imagen(grafica_proveedores_cantidad, 520, "gráfica de proveedores"))
 
     # ── PIE DE PÁGINA ─────────────────────────────────────────────────────────
     def dibujar_encabezado_pie(canvas, doc):

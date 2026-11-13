@@ -52,6 +52,7 @@ from promt_template_cantidad  import template_resumen_cantidad,prompt_revision_c
 
 
 class EstadoModelo_resumen_3(TypedDict, total=False):
+
     # datos que llena estado_cargas_datos
     mes_evaluado: str
     mes_nombre: str
@@ -75,6 +76,13 @@ class EstadoModelo_resumen_3(TypedDict, total=False):
     tiene_errores_cantidad: bool
     notas_auditor_cantidad: str
 
+    # analisis 3 
+    texto_analisis_3: str 
+
+
+
+
+
 llm = obtener_llm()
 
 
@@ -82,6 +90,7 @@ def estado_cargas_datos(state: EstadoModelo_resumen_3) -> dict:
     print('cargando datos')
 
     datos_cantidad_entrega=instanciar_datos_cantidad(obtener_data_set_cantidad())
+   
 
     pct_mes=datos_cantidad_entrega['porcentaje_cumplimiento_cantidad'].values[0]
     promedio_periodo= round(datos_cantidad_entrega['porcentaje_cumplimiento_cantidad'].mean(),2)
@@ -117,6 +126,7 @@ def estado_cargas_datos(state: EstadoModelo_resumen_3) -> dict:
         "meses_consecutivos_mejora": str(meses_consecutivos_mejora),
         "posicion_promedio": posicion_promedio,
         "mes_nombre_inicio": pd.to_datetime(datos_cantidad_entrega['anio-mes'].values[-1]).month_name(locale="es_ES").lower(),
+  
     }
 
 
@@ -190,6 +200,8 @@ def modulo_analisis(state: EstadoModelo_resumen_3) -> dict:
     }
 
 
+
+
 def nodo_revisar_resumen_3(state: EstadoModelo_resumen_3) -> dict:
     print('revisando el resumen...')
     
@@ -224,6 +236,11 @@ def nodo_correcion_3( state:EstadoModelo_resumen_3 ) -> dict:
     nuevo_texto=cadena.invoke({"errores":state["notas_auditor_cantidad"],"texto_orginal":state["borrador_cantidad"]})
     return {"texto_final_cantidad": [nuevo_texto], "tiene_errores_cantidad": False, "notas_auditor_cantidad": ""} 
 
+
+
+
+
+
 # ==============================================================================
 # COMPILACIÓN DEL GRAFO (va SIN indentar: a nivel del archivo, fuera de las funciones)
 # ==============================================================================
@@ -233,6 +250,7 @@ builder.add_node("estado_cargas_datos", estado_cargas_datos)
 builder.add_node("modulo_analisis", modulo_analisis)
 builder.add_node("nodo_revisar_resumen_3", nodo_revisar_resumen_3)
 builder.add_node("nodo_correcion_3", nodo_correcion_3)
+
 
 
 def nodo_desicion_cantidad(state: EstadoModelo_resumen_3 ) ->  Literal["nodo_correcion_3", END]:
@@ -259,20 +277,11 @@ def ejecutar_reporte() -> EstadoModelo_resumen_3:
 
 
     
-# if __name__ == "__main__":
-#     print("ejecutando el agente...")
-#     estado_final = ejecutar_reporte()
-#     texto_final_cantidad = estado_final.get("borrador_cantidad", "no hay datos")
-#     tiene_errores = estado_final.get("tiene_errores_cantidad", False)
-#     texto_final_cantidad_ = estado_final["texto_final_cantidad"][-1] if estado_final.get("texto_final_cantidad") else estado_final.get("borrador_cantidad", "")
-#     # Imprimir el texto final
-#     print("\n" + "="*100)
-#     print("TEXTO FINAL DEL ANÁLISIS:")
-#     print("="*100)
-#     print(texto_final_cantidad_)
-#     print(tiene_errores)
-#     print("="*100)
-
-
-
-## langgraph dev
+if __name__ == "__main__":
+    print("ejecutando el agente...")
+    estado_final = ejecutar_reporte()
+    texto_final_cantidad_ = estado_final["texto_final_cantidad"][-1] if estado_final.get("texto_final_cantidad") else estado_final.get("borrador_cantidad", "")
+    print("\n" + "="*100)
+    print("RESUMEN DE CUMPLIMIENTO DE CANTIDAD:")
+    print("="*100)
+    print(texto_final_cantidad_)

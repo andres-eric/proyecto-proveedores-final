@@ -76,87 +76,100 @@ def top_cantidad_provedores(datos=None):
 
 
 
-def funcion_texto_cantidad(df_top_cantidad_provedo, datos_acmulados, fechas):
+def proveedores_recurrentes(df_mes, df_acum):
+    """Proveedores que fallaron en el mes evaluado y también en meses anteriores (al menos 2 meses con faltantes).
+    La usan el texto del análisis 3 y el gráfico del módulo 3, para que ambos marquen a los mismos proveedores."""
+    rec = df_acum[(df_acum['meses_con_faltantes'] >= 2) & (df_acum['proveedor'].isin(df_mes['proveedor']))]
+    return rec['proveedor'].tolist()
+
+
+def variables_analisis_cantidad(df_mes, df_acum, fechas):
 
     mes_maximo = fechas[-2]
     mes_primero = fechas[0]
-    n_meses = len(fechas) - 1                                    # CAMBIO: meses del período, sin el mes en curso
-    mes_nombre_actual = pd.to_datetime(mes_maximo).month_name(locale="es_ES").lower()
-    mes_nombre_primero = pd.to_datetime(mes_primero).month_name(locale="es_ES").lower()
-    año_maximo = pd.to_datetime(mes_maximo).year
-    año_minimo = pd.to_datetime(mes_primero).year
+    n_meses = len(fechas) - 1
+    mes_nombre = pd.to_datetime(mes_maximo).month_name(locale="es_ES").lower()
+    mes_nombre_inicio = pd.to_datetime(mes_primero).month_name(locale="es_ES").lower()
 
-    proveedor_max_acumulado = datos_acmulados.loc[datos_acmulados['faltantes_acumulados_'].idxmax()]
+    v = {}
 
-    # CAMBIO: la mayor tasa solo entre proveedores con al menos 10 órdenes
-    candidatos_tasa = datos_acmulados[datos_acmulados['total'] >= 10]
-    proveedor_max_porcentaje = candidatos_tasa.loc[candidatos_tasa['porcentaje_incumplimiento'].idxmax()]
-
-    # CAMBIO: recurrente = falló en el mes y en al menos 3 meses del período
-    acumulados_recurrentes = datos_acmulados[datos_acmulados['meses_con_faltantes'] >= 3]
-    recurrentes = sorted(set(df_top_cantidad_provedo['proveedor']) & set(acumulados_recurrentes['proveedor']))
-
-    texto = []
-
-    texto.append("")
-    texto.append(f"MES EVALUADO: {mes_nombre_actual} del año {año_maximo}")
-
-    if df_top_cantidad_provedo.empty:
-        texto.append("Total de órdenes incumplidas en el mes: 0")   # CAMBIO
-        texto.append("Ningún proveedor tuvo órdenes incumplidas en el mes.")
-
+    # ---- Paso 1: el mes (Python decide cuál frase va) ----
+    if df_mes.empty:
+        v["frase_mes"] = f"Durante {mes_nombre} ningún proveedor registró órdenes cerradas con faltantes."
     else:
-        df_top_cantidad = df_top_cantidad_provedo['proveedor'].iloc[0]   # CAMBIO: se movió aquí para que no falle si está vacío
-        total_mes = int(df_top_cantidad_provedo['noCumpleCantidad'].sum())   # CAMBIO
-        texto.append(f"Total de órdenes incumplidas en el mes: {total_mes}")   # CAMBIO
-        texto.append(f"Proveedor con más órdenes incumplidas en el mes: {df_top_cantidad}")
-        texto.append("")
-        texto.append("PROVEEDORES CON ÓRDENES INCUMPLIDAS EN EL MES:")
-        for _, r in df_top_cantidad_provedo.iterrows():
-            texto.append(
-                f"- Proveedor: {r['proveedor']} | "
-                f"Órdenes incumplidas: {int(r['noCumpleCantidad'])} de {int(r['total'])} ({r['porcentaje_incumplimiento']}%)"
-            )
+        primero = df_mes.iloc[0]
+        resto = df_mes.iloc[1:]
+        total_mes = int(df_mes['noCumpleCantidad'].sum())
+        frase = (f"De las {total_mes} órdenes que cerraron con faltantes en {mes_nombre}, "
+                 f"{primero['proveedor']} concentra {int(primero['noCumpleCantidad'])}")
+        if not resto.empty:
+            otros = ", ".join(f"{r['proveedor']} con {int(r['noCumpleCantidad'])}" for _, r in resto.iterrows())
+            frase += f", mientras que el resto corresponde a {otros}"
+        v["frase_mes"] = frase + "."
 
-    texto.append("")
-    texto.append(f"PERÍODO ACUMULADO: {mes_nombre_primero} del {año_minimo} a {mes_nombre_actual} del {año_maximo}")
-    texto.append(
-        f"Proveedor con mayor volumen de incumplimiento acumulado: {proveedor_max_acumulado['proveedor']} | "
-        f"Órdenes incumplidas: {int(proveedor_max_acumulado['faltantes_acumulados_'])} de {int(proveedor_max_acumulado['total'])} "   # CAMBIO: etiqueta
-        f"({proveedor_max_acumulado['porcentaje_incumplimiento']}%) | "
-        f"Meses con incumplimiento: {int(proveedor_max_acumulado['meses_con_faltantes'])} de {n_meses}"   # CAMBIO: formato
-    )
+    # ---- Paso 2: el acumulado (siempre va, cada dato en su variable) ----
+    acum = df_acum.loc[df_acum['faltantes_acumulados_'].idxmax()]
+    v["proveedor_acumulado"] = acum['proveedor']
+    v["incumplidas_acumulado"] = str(int(acum['faltantes_acumulados_']))
+    v["total_acumulado"] = str(int(acum['total']))
+    v["porcentaje_acumulado"] = str(acum['porcentaje_incumplimiento'])
+    v["meses_acumulado"] = f"{int(acum['meses_con_faltantes'])} de {n_meses}"
+    v["mes_nombre"] = mes_nombre
+    v["mes_nombre_inicio"] = mes_nombre_inicio
 
-    texto.append(
-        f"Proveedor con mayor tasa de incumplimiento (mínimo 10 órdenes): {proveedor_max_porcentaje['proveedor']} | "   # CAMBIO
-        f"Órdenes incumplidas: {int(proveedor_max_porcentaje['faltantes_acumulados_'])} de {int(proveedor_max_porcentaje['total'])} "   # CAMBIO: etiqueta
-        f"({proveedor_max_porcentaje['porcentaje_incumplimiento']}%) | "
-        f"Meses con incumplimiento: {int(proveedor_max_porcentaje['meses_con_faltantes'])} de {n_meses}"   # CAMBIO: formato
-    )
+    # ---- Paso 3: mayor tasa (solo si existe y es otro proveedor) ----
+    candidatos = df_acum[df_acum['total'] >= 10]
+    v["frase_tasa"] = ""
+    if not candidatos.empty:
+        tasa = candidatos.loc[candidatos['porcentaje_incumplimiento'].idxmax()]
+        if tasa['proveedor'] != acum['proveedor']:
+            v["frase_tasa"] = (f"Por su parte, {tasa['proveedor']} presenta la mayor tasa de incumplimiento del período, "
+                               f"con {int(tasa['faltantes_acumulados_'])} de sus {int(tasa['total'])} órdenes "
+                               f"cerradas con faltantes ({tasa['porcentaje_incumplimiento']}%).")
 
-    acumulados_recurrentes = datos_acmulados[datos_acmulados['meses_con_faltantes'] >= 2]
-    recurrentes = acumulados_recurrentes[acumulados_recurrentes['proveedor'].isin(df_top_cantidad_provedo['proveedor'])]
-
-    texto.append("PROVEEDORES QUE FALLARON EN EL MES Y TAMBIÉN EN MESES ANTERIORES:")
-    if recurrentes.empty:
-        texto.append("NINGUNO")
+    # ---- Paso 4: recurrencia ----
+    rec = df_acum[df_acum['proveedor'].isin(proveedores_recurrentes(df_mes, df_acum))]
+    if rec.empty:
+        v["frase_recurrencia"] = ("Ninguno de los proveedores con faltantes en el mes registra incumplimiento "
+                                  "en meses anteriores, por lo que se trata de casos puntuales.")
     else:
-        for _, r in recurrentes.iterrows():
-            texto.append(
-                f"- {r['proveedor']} | Meses con incumplimiento: {int(r['meses_con_faltantes'])} de {n_meses} | "
-                f"Órdenes incumplidas en el período: {int(r['faltantes_acumulados_'])} de {int(r['total'])} ({r['porcentaje_incumplimiento']}%)"
-            )
+        partes = [f"{r['proveedor']} ({int(r['meses_con_faltantes'])} de {n_meses} meses)" for _, r in rec.iterrows()]
+        v["frase_recurrencia"] = (f"{', '.join(partes)} presenta un incumplimiento recurrente, al registrar "
+                                  f"órdenes con faltantes en el mes evaluado y en meses anteriores del período.")
 
-    return "\n".join(texto)
+    return v
 
-def ejecucion_texto(datos=None):
 
+def ejecucion_variables():
     datos = obtener_data_set_cantidad()
-    df_historicos_mes = datos_agrupados(datos)
-    df_top_cantidad_provedo,acumuladores,fecha = top_cantidad_provedores(df_historicos_mes)
-    texto=funcion_texto_cantidad(df_top_cantidad_provedo,acumuladores,fecha)
+    df_mes, df_acum, fechas = top_cantidad_provedores(datos_agrupados(datos))
+    return variables_analisis_cantidad(df_mes, df_acum, fechas)
 
-    return texto
+
+def datos_grafico_proveedores():
+    """Datos para graficos.graficas_modulo3.graficar_modulo_3_proveedores (gráfico de la página 3.1 del PDF)."""
+    datos = obtener_data_set_cantidad()
+    df_mes, df_acum, fechas = top_cantidad_provedores(datos_agrupados(datos))
+
+    fecha_fin = pd.to_datetime(fechas[-2])     # mes evaluado (el último mes es el que está en curso)
+    fecha_ini = pd.to_datetime(fechas[0])
+    mes_fin = fecha_fin.month_name(locale="es_ES").capitalize()
+    mes_ini = fecha_ini.month_name(locale="es_ES").capitalize()
+
+    if fecha_ini.year == fecha_fin.year:
+        periodo_texto = f"{mes_ini} a {mes_fin} {fecha_fin.year}"
+    else:
+        periodo_texto = f"{mes_ini} {fecha_ini.year} a {mes_fin} {fecha_fin.year}"
+
+    return {
+        "top_mes": df_mes,
+        "acumulados": df_acum,
+        "recurrentes": proveedores_recurrentes(df_mes, df_acum),
+        "n_meses": len(fechas) - 1,
+        "mes_nombre": f"{mes_fin} {fecha_fin.year}",
+        "periodo_texto": periodo_texto,
+    }
+
 
 
 
@@ -168,11 +181,10 @@ def ejecucion_texto(datos=None):
 
 
 if __name__ == "__main__":
-    datos = obtener_data_set_cantidad()
-    texto=ejecucion_texto(datos)
+    variables = ejecucion_variables()
+    for clave, valor in variables.items():
+        print(f"{clave}: {valor}")
 
-    print(texto)
     
- 
 
 
