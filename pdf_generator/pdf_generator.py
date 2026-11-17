@@ -343,7 +343,7 @@ def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barr
             flowables.append(Spacer(1, 30))
 
         if texto_modulo_3:
-            flowables.append(_titulo_seccion("RESUMEN EJECUTIVO", ancho_pagina, color_secundario, custom_h2))
+            flowables.append(_titulo_seccion("RESUMEN ", ancho_pagina, color_secundario, custom_h2))
             flowables.append(Spacer(1, 14))
             flowables.extend(parse_simple_markdown(texto_modulo_3.strip(), styles))
 
@@ -361,6 +361,27 @@ def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barr
 
         if hay_grafica_proveedores:
             flowables.append(_imagen(grafica_proveedores_cantidad, 520, "gráfica de proveedores"))
+
+    # ── MÓDULO 4, página A: cumplimiento en primera entrega (por ahora solo títulos) ──
+    # TODO: tarjetas KPI, gráfica de evolución y resumen del agente cuando estén listos el ETL y los agentes.
+    flowables.append(PageBreak())
+    flowables.append(_titulo_seccion("4. Cumplimiento en Primera Entrega", ancho_pagina, color_secundario, custom_h2))
+    flowables.append(Spacer(1, 6))
+    flowables.append(Paragraph(
+        "Mide las órdenes que llegaron completas en su primer recibo. Cada orden se asigna al mes de su "
+        "primer recibo, por lo que su universo difiere del cumplimiento de cantidad.", styles['CustomCaption']))
+    flowables.append(Spacer(1, 14))
+
+    flowables.append(_titulo_seccion("EVOLUCIÓN DEL CUMPLIMIENTO EN PRIMERA ENTREGA", ancho_pagina, color_secundario, custom_h2))
+    flowables.append(Spacer(1, 30))
+
+    flowables.append(_titulo_seccion("RESUMEN ", ancho_pagina, color_secundario, custom_h2))
+    flowables.append(Spacer(1, 14))
+
+    # ── MÓDULO 4, página B: proveedores (por ahora solo título) ──
+    flowables.append(PageBreak())
+    flowables.append(_titulo_seccion("4.1 Proveedores con Incumplimiento en Primera Entrega", ancho_pagina, color_secundario, custom_h2))
+    flowables.append(Spacer(1, 12))
 
     # ── PIE DE PÁGINA ─────────────────────────────────────────────────────────
     def dibujar_encabezado_pie(canvas, doc):
