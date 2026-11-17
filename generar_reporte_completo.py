@@ -40,7 +40,7 @@ def extraer_texto(estado, clave_final, clave_borrador):
     # Saca el texto final del resultado del grafo; si no existe, usa el borrador
     texto_final = estado.get(clave_final)
     if texto_final:
-        return texto_final[0]
+        return texto_final[-1]
     return estado.get(clave_borrador, "")
 
 
@@ -78,7 +78,7 @@ def ejecutar_pipeline():
     texto_agente = extraer_texto(estado_final, "texto_final_continuidad", "borrador_continuidad")
     texto_modulo_2 = extraer_texto(estado_final, "texto_final_riesgo", "borrador_riesgo")
     texto_modulo_3 = extraer_texto(estado_final, "texto_final_cantidad", "borrador_cantidad")
-    texto_proveedores_cantidad = estado_final.get("texto_analisis_3")   # es un texto, no una lista
+    texto_proveedores_cantidad = extraer_texto(estado_final, "texto_final_analisis_3_detalle", "texto_analisis_3")
     kpis_cantidad = construir_kpis_cantidad(estado_final)
     print("  -> Textos generados por el LLM exitosamente.")
 

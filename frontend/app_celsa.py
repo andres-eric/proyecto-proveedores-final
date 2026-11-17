@@ -16,7 +16,7 @@ Todo el acoplamiento con el backend está concentrado en TRES funciones, marcada
 el encabezado  ">>> PUNTO DE CONEXIÓN <<<"  :
 
     1. ejecutar_etl()          -> Fase 1: datos + métricas + gráficas
-    2. ejecutar_motor_ia()     -> Fase 2: analisis_1() y analisis_2()
+    2. ejecutar_motor_ia()     -> Fase 2: grafo padre LangGraph (4 análisis con revisión final)
     3. generar_informe_pdf()   -> Fase 3: ReportLab
 
 El resto del archivo (CSS, layout, efecto máquina de escribir, descarga) no necesita cambios.
@@ -84,15 +84,10 @@ def cargar_backend() -> dict:
     from graficos.graficas_modulo3 import graficar_modulo_3_desde_datos
     from pdf_generator.pdf_generator import generar_pdf_reporte, construir_kpis_cantidad
 
-    resumen_agent = _cargar_modulo_desde_archivo(
-        "resumen_agent", ROOT_DIR / "langchain" / "Analisis_Continuidad_Negocio_1" / "resumen_agent.py")
-    analisis_2_agent = _cargar_modulo_desde_archivo(
-        "analisis_2_agent", ROOT_DIR / "langchain" / "Analisis_evaluacion_Riesgo_2" / "Analisis_2.py")
-    # Módulo 3: agentes LangGraph de cantidad (resumen) y de proveedores (detalle)
-    agente_cantidad = _cargar_modulo_desde_archivo(
-        "agente_cantidad", ROOT_DIR / "langchain" / "langrahpgrap" / "Analisis_evaluacion_cantidad_3" / "agente.py")
-    agente_cantidad_detalle = _cargar_modulo_desde_archivo(
-        "agente_cantidad_detalle", ROOT_DIR / "langchain" / "langrahpgrap" / "Analisis_evaluacion_cantidad_3 _detalle" / "agente.py")
+    # Grafo padre LangGraph: corre los 4 análisis (continuidad, riesgo, cantidad y detalle),
+    # cada uno con su nodo de revisión y corrección. Es el mismo que usa generar_reporte_completo.py.
+    nodo_padre = _cargar_modulo_desde_archivo(
+        "nodo_padre", ROOT_DIR / "langchain" / "langrahpgrap" / "Nodo_Padre" / "agente.py")
 
     return {
         "obtener_datos_completos": obtener_datos_completos,
@@ -104,11 +99,8 @@ def cargar_backend() -> dict:
         "graficar_modulo_2": graficar_modulo_2,
         "graficar_analisis_cantidad": graficar_analisis_cantidad,
         "graficar_modulo_3_desde_datos": graficar_modulo_3_desde_datos,
-        "grafo_cantidad": agente_cantidad.grafo,
-        "grafo_cantidad_detalle": agente_cantidad_detalle.grafo,
+        "grafo_padre": nodo_padre.grafo,
         "construir_kpis_cantidad": construir_kpis_cantidad,
-        "analisis_1": resumen_agent.analisis_1,
-        "analisis_2": analisis_2_agent.analisis_2,
         "generar_pdf_reporte": generar_pdf_reporte,
     }
 
@@ -165,30 +157,32 @@ def ejecutar_etl(status) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 # >>> PUNTO DE CONEXIÓN 2 <<<  FASE 2: MOTOR DE INFERENCIA IA
 # ──────────────────────────────────────────────────────────────────────────────
+def _texto_revisado(estado: dict, clave_final: str, clave_borrador: str) -> str:
+    """Devuelve el texto ya revisado/corregido por el auditor; si no existe, el borrador."""
+    finales = estado.get(clave_final)
+    if finales:
+        return finales[-1]
+    return estado.get(clave_borrador, "")
+
+
 def ejecutar_motor_ia(etl: dict) -> dict:
     """
-    Llama a los agentes LangChain reales. Retorna:
-      - texto_1: resumen ejecutivo de continuidad (analisis_1)
-      - texto_2: análisis de proveedores críticos (analisis_2)
-      - texto_3: resumen de cumplimiento de cantidad (agente de cantidad)
-      - texto_3_proveedores: proveedores con incumplimiento de cantidad (agente de detalle)
+    Ejecuta el grafo padre LangGraph (los 4 análisis con revisión final). Retorna:
+      - texto_1: resumen ejecutivo de continuidad (revisado)
+      - texto_2: análisis de proveedores críticos / riesgo (revisado)
+      - texto_3: resumen de cumplimiento de cantidad (revisado)
+      - texto_3_proveedores: proveedores con incumplimiento de cantidad (revisado)
       - kpis_cantidad: tarjetas de la sección 3, con los mismos valores que usa el agente
     """
     backend = cargar_backend()
-    texto_1 = backend["analisis_1"](datos=etl["ultimo_mes"])
-    texto_2 = backend["analisis_2"](etl["datos_kpi_detalle"], etl["datos_inspeccion"])
-
-    estado_cantidad = backend["grafo_cantidad"].invoke({})
-    finales = estado_cantidad.get("texto_final_cantidad")
-    texto_3 = finales[-1] if finales else estado_cantidad.get("borrador_cantidad", "")
-    estado_detalle = backend["grafo_cantidad_detalle"].invoke({})
+    estado = backend["grafo_padre"].invoke({})
 
     return {
-        "texto_1": texto_1,
-        "texto_2": texto_2,
-        "texto_3": texto_3,
-        "texto_3_proveedores": estado_detalle.get("texto_analisis_3"),
-        "kpis_cantidad": backend["construir_kpis_cantidad"](estado_cantidad),
+        "texto_1": _texto_revisado(estado, "texto_final_continuidad", "borrador_continuidad"),
+        "texto_2": _texto_revisado(estado, "texto_final_riesgo", "borrador_riesgo"),
+        "texto_3": _texto_revisado(estado, "texto_final_cantidad", "borrador_cantidad"),
+        "texto_3_proveedores": _texto_revisado(estado, "texto_final_analisis_3_detalle", "texto_analisis_3"),
+        "kpis_cantidad": backend["construir_kpis_cantidad"](estado),
     }
 
 

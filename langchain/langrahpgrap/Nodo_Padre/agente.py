@@ -97,6 +97,9 @@ class EstadoFlujo(TypedDict, total=False):
 
     # analisis 3 detalle (proveedores con incumplimiento de cantidad)
     texto_analisis_3: str
+    texto_final_analisis_3_detalle: list
+    tiene_errores_analisis_3_detalle: bool
+    notas_auditor_analisis_3_detalle: str
 
 
 builder = StateGraph(EstadoFlujo)
