@@ -61,17 +61,14 @@ def datos_historicos(datos=None):
     datos_resumen=datos_resumen[1:]
     datos_resumen['porcentaje_cumplimiento_cantidad']=round((datos_resumen['cantidadCumpleCantidad']/datos_resumen['totalOrdenesCantidad'])*100,1).fillna(0)
     datos_resumen['variacion_porcentaje_cumplimiento_cantidad'] = round(datos_resumen['porcentaje_cumplimiento_cantidad'].pct_change(periods=-1) * 100,1).fillna(0)
-    datos_resumen['porcentaje_cumplimiento_1_entrega']=round((datos_resumen['cantidadCumple1Entrega']/datos_resumen['totalPrimerasEntregas'])*100,1).fillna(0)
-    datos_resumen['variacion_porcentaje_cumplimiento_1_entrega'] = round(datos_resumen['porcentaje_cumplimiento_1_entrega'].pct_change(periods=-1) * 100,1).fillna(0)
+    datos_resumen['porcentaje_cumplimiento_1_entrega']=round((datos_resumen['cantidadCumple1Entrega']/datos_resumen['totalPrimerasEntregas'])*100,1)
+    datos_resumen['variacion_pp_cumplimiento_1_entrega'] = round(datos_resumen['porcentaje_cumplimiento_1_entrega'].diff(periods=-1), 1)
+
+
     
 
-    return datos_resumen
-
     
-    
-
-
-
+    return datos_resumen.columns
 
 if __name__ == "__main__":
     datos = obtener_data_set_primera_entrega()
