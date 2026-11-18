@@ -39,11 +39,14 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 os.chdir(ROOT_DIR)  # el backend resuelve .env y rutas relativas desde la raíz del proyecto
 
-RUTA_KPIS = str(ROOT_DIR / "tarjetas_ejecutivas.png")
-RUTA_BARRAS = str(ROOT_DIR / "volumen_total_mes.png")
-RUTA_M2_TORNADO = str(ROOT_DIR / "modulo2_tornado.png")
-RUTA_M3_CANTIDAD = str(ROOT_DIR / "modulo3_cantidad.png")
-RUTA_M3_PROVEEDORES = str(ROOT_DIR / "modulo3_proveedores.png")
+from graficos.rutas_graficas import ruta_grafica  # carpeta única de gráficas: archivos_graficas/
+
+RUTA_KPIS = ruta_grafica("tarjetas_ejecutivas.png")
+RUTA_BARRAS = ruta_grafica("volumen_total_mes.png")
+RUTA_M2_TORNADO = ruta_grafica("modulo2_tornado.png")
+RUTA_M3_CANTIDAD = ruta_grafica("modulo3_cantidad.png")
+RUTA_M3_PROVEEDORES = ruta_grafica("modulo3_proveedores.png")
+RUTA_M4_EVOLUCION = ruta_grafica("modulo4_primera_evolucion.png")
 RUTA_PDF = ROOT_DIR / "archivos_pdf" / "Reporte_Operativo_Pipeline.pdf"
 
 VELOCIDAD_ESCRITURA = 0.05  # segundos por palabra en el efecto máquina de escribir
@@ -82,7 +85,9 @@ def cargar_backend() -> dict:
     from graficos.graficas_modulo2 import graficar_modulo_2
     from graficos.graficas_analisis_cantidad import graficar_analisis_cantidad
     from graficos.graficas_modulo3 import graficar_modulo_3_desde_datos
-    from pdf_generator.pdf_generator import generar_pdf_reporte, construir_kpis_cantidad
+    from graficos.graficas_modulo4 import graficar_primera_entrega
+    from pdf_generator.pdf_generator import (generar_pdf_reporte, construir_kpis_cantidad, construir_kpis_resumen,
+                                             texto_rango_meses)
 
     # Grafo padre LangGraph: corre los 4 análisis (continuidad, riesgo, cantidad y detalle),
     # cada uno con su nodo de revisión y corrección. Es el mismo que usa generar_reporte_completo.py.
@@ -99,8 +104,11 @@ def cargar_backend() -> dict:
         "graficar_modulo_2": graficar_modulo_2,
         "graficar_analisis_cantidad": graficar_analisis_cantidad,
         "graficar_modulo_3_desde_datos": graficar_modulo_3_desde_datos,
+        "graficar_primera_entrega": graficar_primera_entrega,
         "grafo_padre": nodo_padre.grafo,
         "construir_kpis_cantidad": construir_kpis_cantidad,
+        "construir_kpis_resumen": construir_kpis_resumen,
+        "texto_rango_meses": texto_rango_meses,
         "generar_pdf_reporte": generar_pdf_reporte,
     }
 
@@ -144,7 +152,10 @@ def ejecutar_etl(status) -> dict:
     backend["graficar_analisis_cantidad"](RUTA_M3_CANTIDAD)
     backend["graficar_modulo_3_desde_datos"](RUTA_M3_PROVEEDORES)
 
-    status.write("✨ **Gráficas creadas en la raíz del proyecto exitosamente.**")
+    status.write("&nbsp;&nbsp;&nbsp;&nbsp;↳ Graficando órdenes que requirieron entregas adicionales (primera entrega)...")
+    backend["graficar_primera_entrega"](RUTA_M4_EVOLUCION)
+
+    status.write("✨ **Gráficas creadas en la carpeta archivos_graficas/ exitosamente.**")
 
     return {
         "df_historico": df_historico,
@@ -172,6 +183,7 @@ def ejecutar_motor_ia(etl: dict) -> dict:
       - texto_2: análisis de proveedores críticos / riesgo (revisado)
       - texto_3: resumen de cumplimiento de cantidad (revisado)
       - texto_3_proveedores: proveedores con incumplimiento de cantidad (revisado)
+      - texto_4: resumen de cumplimiento en primera entrega (revisado)
       - kpis_cantidad: tarjetas de la sección 3, con los mismos valores que usa el agente
     """
     backend = cargar_backend()
@@ -182,6 +194,7 @@ def ejecutar_motor_ia(etl: dict) -> dict:
         "texto_2": _texto_revisado(estado, "texto_final_riesgo", "borrador_riesgo"),
         "texto_3": _texto_revisado(estado, "texto_final_cantidad", "borrador_cantidad"),
         "texto_3_proveedores": _texto_revisado(estado, "texto_final_analisis_3_detalle", "texto_analisis_3"),
+        "texto_4": _texto_revisado(estado, "texto_final_analisis_primera_entrega", "texto_analisis_primera_entrega"),
         "kpis_cantidad": backend["construir_kpis_cantidad"](estado),
     }
 
@@ -190,30 +203,17 @@ def ejecutar_motor_ia(etl: dict) -> dict:
 # >>> PUNTO DE CONEXIÓN 3 <<<  FASE 3: ENSAMBLAJE DEL PDF (ReportLab)
 # ──────────────────────────────────────────────────────────────────────────────
 def _construir_kpis(df_historico) -> tuple:
-    """Arma la lista de KPIs y el periodo exactamente como lo hace generar_reporte_completo.py."""
-    act, ant = df_historico.iloc[0], df_historico.iloc[1]
-    d_c = act["tasa_cumpli_perfecto"] - ant["tasa_cumpli_perfecto"]
-    d_r = act["tasa_riesgo_critico"] - ant["tasa_riesgo_critico"]
-    verde, rojo = "#16A34A", "#B91C1C"
-    kpis = [
-        {"titulo": "Cumplimiento", "valor": f"{act['tasa_cumpli_perfecto']:.1f}%",
-         "delta": f"{d_c:+.2f} pp vs mes anterior",
-         "color": verde if d_c >= 0 else rojo, "acento": "#16A34A"},
-        {"titulo": "Riesgo crítico", "valor": f"{act['tasa_riesgo_critico']:.1f}%",
-         "delta": f"{d_r:+.2f} pp vs mes anterior",
-         "color": verde if d_r <= 0 else rojo, "acento": "#B91C1C"},
-        {"titulo": "Unidades defectuosas",
-         "valor": f"{int(act['cantidad_recibida_defectuosa']):,}".replace(",", "."),
-         "delta": "Cantidad recibida defectuosa", "color": "#6B7280", "acento": "#EA580C"},
-    ]
-    return kpis, str(act["anio-mes"])
+    """Tarjetas de la sección 1, periodo y rango de meses, igual que generar_reporte_completo.py."""
+    backend = cargar_backend()
+    return (backend["construir_kpis_resumen"](df_historico), str(df_historico.iloc[0]["anio-mes"]),
+            backend["texto_rango_meses"](df_historico["anio-mes"]))
 
 
 def generar_informe_pdf(etl: dict, ia: dict) -> bytes:
     """Llama al generador real de ReportLab y devuelve los bytes del PDF para la descarga."""
     backend = cargar_backend()
     RUTA_PDF.parent.mkdir(exist_ok=True)
-    kpis, periodo = _construir_kpis(etl["df_historico"])
+    kpis, periodo, rango_periodo = _construir_kpis(etl["df_historico"])
 
     exito = backend["generar_pdf_reporte"](
         texto_agente=ia["texto_1"],
@@ -229,6 +229,9 @@ def generar_informe_pdf(etl: dict, ia: dict) -> bytes:
         kpis_cantidad=ia.get("kpis_cantidad"),
         grafica_proveedores_cantidad=RUTA_M3_PROVEEDORES,
         texto_proveedores_cantidad=ia.get("texto_3_proveedores"),
+        grafica_primera_evolucion=RUTA_M4_EVOLUCION,
+        texto_primera_entrega=ia.get("texto_4"),
+        rango_periodo=rango_periodo,
     )
     if not exito or not RUTA_PDF.exists():
         raise RuntimeError("El generador de PDF no pudo crear el informe. Revisa la consola del servidor.")
@@ -397,11 +400,13 @@ def maquina_de_escribir(texto: str, delay: float = VELOCIDAD_ESCRITURA):
 
 def mostrar_kpis(df_historico):
     """Tarjetas con los KPIs reales del último periodo (calculados por el ETL)."""
-    kpis, periodo = _construir_kpis(df_historico)
+    kpis, periodo, _ = _construir_kpis(df_historico)
     st.caption(f"Periodo analizado: **{periodo}**")
     columnas = st.columns(len(kpis))
     for col, k in zip(columnas, kpis):
-        col.metric(k["titulo"], k["valor"], k["delta"], delta_color="off")
+        v = k.get("variacion_pp")
+        delta = f"{v:+.1f} pp vs mes anterior" if v is not None else k.get("detalle", "")
+        col.metric(k["titulo"], k["valor"], delta, delta_color="off")
 
 
 def mostrar_resultados_ia(ia: dict, animar: bool):
@@ -411,6 +416,7 @@ def mostrar_resultados_ia(ia: dict, animar: bool):
         ("Análisis de proveedores críticos", ia["texto_2"]),
         ("Cumplimiento de cantidad", ia.get("texto_3")),
         ("Proveedores con incumplimiento de cantidad", ia.get("texto_3_proveedores")),
+        ("Cumplimiento en primera entrega", ia.get("texto_4")),
     ]
     for titulo, texto in secciones:
         if not texto:

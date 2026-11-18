@@ -13,19 +13,22 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-# Paleta: el acento es distinto al azul de logística (#1F4E78) y al rojo de calidad (#8B0000) de la página 2
-COLOR_RECURRENTE = "#C2560C"        # naranja oscuro: proveedor recurrente (mismo tono en ambos paneles)
-COLOR_RESTO = "#B8C2C8"             # gris claro: resto de proveedores
-COLOR_ETIQUETA_RESTO = "#6B7780"    # gris oscuro para que la etiqueta de las barras grises se lea
-COLOR_TITULO = "#0F3D4C"            # petróleo del reporte
-COLOR_TEXTO = "#1E2B33"
-COLOR_SEPARADOR = "#B8C7CE"
+from graficos.rutas_graficas import ruta_grafica, CARPETA_GRAFICAS
+from graficos.tema import aplicar_tema, tamano_dos_paneles, titulo_panel, ajustar_eje_a_etiquetas, leyenda_inferior, guardar
+from pdf_generator import estilos as E
+
+# Colores del informe (pdf_generator/estilos.py). El naranja marca al proveedor recurrente.
+COLOR_RECURRENTE = E.ACENTO_RECURRENTE   # mismo tono en ambos paneles
+COLOR_RESTO = E.AZUL_GRIS                # resto de proveedores (neutro)
+COLOR_ETIQUETA_RESTO = E.TEXTO_SECUNDARIO
+COLOR_TITULO = E.AZUL_CORPORATIVO
+COLOR_TEXTO = E.TEXTO_PRINCIPAL
+COLOR_SEPARADOR = E.LINEA_DIVISORA
 
 TOP_ACUMULADO = 5
-ANCHO_WRAP = 26                     # caracteres por línea en los nombres del eje Y
-FUENTE_ETIQUETA = 7
-ANCHO_FIGURA = 9.5                  # igual que graficas_modulo2.py
-ALTO_FIGURA = 4.5                   # menor que el módulo 2 (8.6): aquí hay máximo 5 filas por panel
+ANCHO_WRAP = 22                     # caracteres por línea en los nombres del eje Y (máx. 2 líneas)
+FUENTE_ETIQUETA = E.TAM_GRAFICA
+PROPORCION_PANEL_DERECHO = 0.56     # fracción del ancho para el panel del acumulado
 
 
 def _nombre_eje(proveedor, ancho: int = ANCHO_WRAP) -> str:
@@ -49,19 +52,20 @@ def _panel(ax, nombres, valores, etiquetas, colores, colores_etiqueta, n_filas, 
     ax.tick_params(axis="y", length=0, pad=6)
     ax.set_xticks([])
     ax.set_ylim(-0.6, n_filas - 0.4)
-    ax.set_xlim(0, vmax * holgura)       # cada panel con su propia escala
+    ax.set_xlim(0, vmax * holgura)       # cada panel con su propia escala (ajustar_eje_a_etiquetas la amplía si hace falta)
 
-    for y, v, txt, c in zip(posiciones, valores, etiquetas, colores_etiqueta):
-        ax.annotate(txt, xy=(v, y), xytext=(4, 0), textcoords="offset points",
-                    ha="left", va="center", fontsize=8, fontweight="bold", color=c)
+    anotaciones = [ax.annotate(txt, xy=(v, y), xytext=(4, 0), textcoords="offset points",
+                               ha="left", va="center", fontsize=E.TAM_GRAFICA, fontweight="bold", color=c)
+                   for y, v, txt, c in zip(posiciones, valores, etiquetas, colores_etiqueta)]
 
     for s in ax.spines.values():
         s.set_visible(False)
     ax.grid(False)
+    return valores, anotaciones
 
 
 def graficar_modulo_3_proveedores(top_mes, acumulados, recurrentes, n_meses, mes_nombre, periodo_texto,
-                                  ruta_salida: str = "modulo3_proveedores.png") -> str:
+                                  ruta_salida: str = ruta_grafica("modulo3_proveedores.png")) -> str:
     """
     Dos paneles lado a lado separados por una línea vertical punteada (mismo layout que graficas_modulo2.py):
     izquierda = órdenes con faltantes en el mes evaluado; derecha = top 5 del acumulado del período.
@@ -80,23 +84,27 @@ def graficar_modulo_3_proveedores(top_mes, acumulados, recurrentes, n_meses, mes
 
     n_filas = max(len(mes), len(acum), 1)
 
-    fig = plt.figure(figsize=(ANCHO_FIGURA, ALTO_FIGURA), facecolor="white")
-    # [izq, abajo, ancho, alto] en fracción de la figura: [etiquetas L | barras L] | separador | [etiquetas R | barras R]
-    ax_l = fig.add_axes([0.21, 0.10, 0.27, 0.80])
-    ax_r = fig.add_axes([0.73, 0.10, 0.27, 0.80])
+    aplicar_tema()
+    fig = plt.figure(figsize=tamano_dos_paneles(), layout="constrained")
+    # [etiquetas L | barras L] | separador | [etiquetas R | barras R]: una subfigura por mitad
+    # El panel derecho lleva el texto de valor más largo ("45 de 128 · 5/5 meses"): recibe más ancho
+    sub_l, sub_r = fig.subfigures(1, 2, wspace=0.04, width_ratios=[1 - PROPORCION_PANEL_DERECHO, PROPORCION_PANEL_DERECHO])
+    ax_l = sub_l.subplots()
+    ax_r = sub_r.subplots()
 
     # ── Panel izquierdo: mes evaluado ──
     titulo_l = f"Órdenes con faltantes · {mes_nombre}"
+    paneles = []   # (ax, valores, anotaciones) para que el texto al final de cada barra quepa en su panel
     if mes.empty:
         ax_l.text(0.5, 0.5, "Sin órdenes con faltantes en el mes", ha="center", va="center",
-                  fontsize=9, color=COLOR_ETIQUETA_RESTO, transform=ax_l.transAxes)
+                  color=COLOR_ETIQUETA_RESTO, transform=ax_l.transAxes)
         ax_l.set_xticks([])
         ax_l.set_yticks([])
         for s in ax_l.spines.values():
             s.set_visible(False)
     else:
         filas = mes.iloc[::-1]   # barh dibuja de abajo hacia arriba: se invierte para dejar el mayor arriba
-        _panel(
+        paneles.append((ax_l, *_panel(
             ax_l,
             nombres=filas["proveedor"].tolist(),
             valores=filas["noCumpleCantidad"].astype(float).tolist(),
@@ -104,20 +112,20 @@ def graficar_modulo_3_proveedores(top_mes, acumulados, recurrentes, n_meses, mes
             colores=[_color(p, COLOR_RECURRENTE, COLOR_RESTO) for p in filas["proveedor"]],
             colores_etiqueta=[_color(p, COLOR_RECURRENTE, COLOR_ETIQUETA_RESTO) for p in filas["proveedor"]],
             n_filas=n_filas, holgura=1.9,
-        )
+        )))
 
     # ── Panel derecho: acumulado del período ──
     titulo_r = f"Acumulado · {periodo_texto}"
     if acum.empty:
         ax_r.text(0.5, 0.5, "Sin órdenes con faltantes en el período", ha="center", va="center",
-                  fontsize=9, color=COLOR_ETIQUETA_RESTO, transform=ax_r.transAxes)
+                  color=COLOR_ETIQUETA_RESTO, transform=ax_r.transAxes)
         ax_r.set_xticks([])
         ax_r.set_yticks([])
         for s in ax_r.spines.values():
             s.set_visible(False)
     else:
         filas = acum.iloc[::-1]
-        _panel(
+        paneles.append((ax_r, *_panel(
             ax_r,
             nombres=filas["proveedor"].tolist(),
             valores=filas["faltantes_acumulados_"].astype(float).tolist(),
@@ -126,28 +134,27 @@ def graficar_modulo_3_proveedores(top_mes, acumulados, recurrentes, n_meses, mes
             colores=[_color(p, COLOR_RECURRENTE, COLOR_RESTO) for p in filas["proveedor"]],
             colores_etiqueta=[_color(p, COLOR_RECURRENTE, COLOR_ETIQUETA_RESTO) for p in filas["proveedor"]],
             n_filas=n_filas, holgura=2.3,
-        )
+        )))
 
-    # Títulos centrados sobre cada mitad de la figura (nombres + barras), para que no crucen el separador
-    for x, titulo in ((0.24, titulo_l), (0.76, titulo_r)):
-        fig.text(x, 0.97, titulo, ha="center", va="bottom", fontsize=11, fontweight="bold", color=COLOR_TITULO)
+    # Etiquetas de panel (el título de la figura va en el PDF), centradas sobre cada mitad
+    for sub, titulo in ((sub_l, titulo_l), (sub_r, titulo_r)):
+        titulo_panel(sub, titulo, COLOR_TITULO)
 
     # Separador vertical central (igual que la página 2)
-    fig.add_artist(Line2D([0.5, 0.5], [0.08, 0.95], transform=fig.transFigure,
+    x_sep = 1 - PROPORCION_PANEL_DERECHO
+    fig.add_artist(Line2D([x_sep, x_sep], [0.12, 0.95], transform=fig.transFigure,
                           color=COLOR_SEPARADOR, linewidth=1.0, linestyle=(0, (4, 3))))
 
-    # Leyenda pequeña debajo de la figura
-    fig.legend(handles=[Patch(facecolor=COLOR_RECURRENTE, edgecolor="none",
-                              label="Incumplimiento recurrente (mes evaluado y meses anteriores)")],
-               loc="upper center", bbox_to_anchor=(0.5, 0.04), frameon=False, fontsize=8,
-               handlelength=1.0, handleheight=1.0, labelcolor=COLOR_TEXTO)
+    # Leyenda debajo de la figura, centrada y sin marco
+    leyenda_inferior(fig, handles=[Patch(facecolor=COLOR_RECURRENTE, edgecolor="none",
+                                         label="Incumplimiento recurrente (mes evaluado y meses anteriores)")], ncol=1)
 
-    fig.savefig(ruta_salida, dpi=300, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return ruta_salida
+    ajustar_eje_a_etiquetas(fig, paneles)
+
+    return guardar(fig, ruta_salida)
 
 
-def graficar_modulo_3_desde_datos(ruta_salida: str = "modulo3_proveedores.png") -> str:
+def graficar_modulo_3_desde_datos(ruta_salida: str = ruta_grafica("modulo3_proveedores.png")) -> str:
     """Carga los datos reales desde el ETL de cantidad y genera el gráfico de proveedores."""
     from etl.datos_analisis_cantidad_entrega import datos_grafico_proveedores
 

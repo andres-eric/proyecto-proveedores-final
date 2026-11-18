@@ -63,17 +63,78 @@ def datos_historicos(datos=None):
     datos_resumen['variacion_porcentaje_cumplimiento_cantidad'] = round(datos_resumen['porcentaje_cumplimiento_cantidad'].pct_change(periods=-1) * 100,1).fillna(0)
     datos_resumen['porcentaje_cumplimiento_1_entrega']=round((datos_resumen['cantidadCumple1Entrega']/datos_resumen['totalPrimerasEntregas'])*100,1)
     datos_resumen['variacion_pp_cumplimiento_1_entrega'] = round(datos_resumen['porcentaje_cumplimiento_1_entrega'].diff(periods=-1), 1)
-
+    datos_resumen=datos_resumen[['anio-mes','totalPrimerasEntregas','cantidadCumple1Entrega','porcentaje_cumplimiento_1_entrega','variacion_pp_cumplimiento_1_entrega']].copy()
+    datos_resumen['cantidad_no_cumple'] = datos_resumen['totalPrimerasEntregas'] - datos_resumen['cantidadCumple1Entrega']
 
     
+    return datos_resumen
 
-    
-    return datos_resumen.columns
+
+def variables_analisis_primera_entrega():
+
+    df=obtener_data_set_primera_entrega()
+    datos_resumen=datos_historicos(df)
+
+
+    porcentaje_mes=datos_resumen['porcentaje_cumplimiento_1_entrega'].values[0]
+    promedio_cumplimidatos_resumen= round(datos_resumen['porcentaje_cumplimiento_1_entrega'].mean(),1)
+
+    if porcentaje_mes>promedio_cumplimidatos_resumen:
+        posicion_promdio='por encima del promedio'
+    elif porcentaje_mes< promedio_cumplimidatos_resumen:
+        posicion_promdio='por debajo del promedio'
+    else: posicion_promdio='igual al promedio'
+
+    meses_consectivos=0
+
+    for i in datos_resumen['variacion_pp_cumplimiento_1_entrega']:
+        if pd.notna(i) and i>0:
+            meses_consectivos+=1
+
+     
+
+        else:
+            break
+
+
+    return {
+        "mes_evaluado": str(datos_resumen['anio-mes'].values[0]),
+        "mes_nombre": pd.to_datetime(datos_resumen['anio-mes'].values[0]).month_name(locale="es_ES").lower(),
+        "total_primera": str(datos_resumen['totalPrimerasEntregas'].values[0]),
+        "cumple_primera": str(datos_resumen['cantidadCumple1Entrega'].values[0]),
+        "no_cumple_primera": str(datos_resumen['cantidad_no_cumple'].values[0]),
+        "porcentaje_primera": str(porcentaje_mes),
+        "variacion_pp_primera": str(datos_resumen['variacion_pp_cumplimiento_1_entrega'].values[0]),
+        # --- Contexto histórico ---
+        "promedio_periodo_primera": str(promedio_cumplimidatos_resumen),
+        "posicion_promedio": posicion_promdio,
+        "mes_nombre_inicio": pd.to_datetime(datos_resumen['anio-mes'].values[-1]).month_name(locale="es_ES").lower(),
+        "meses_consecutivos": str(meses_consectivos)
+
+    }
+
+
+
+def ejecutar_resumen():
+
+    porcentaje_mes=variables_analisis_primera_entrega()
+
+    return porcentaje_mes
+
+
+
 
 if __name__ == "__main__":
-    datos = obtener_data_set_primera_entrega()
-    df_historicos = datos_historicos(datos)
-    print(df_historicos)
+
+    
+    df=obtener_data_set_primera_entrega()
+    datos_historico=datos_historicos(df)
+    print(datos_historico)
+
+# if __name__ == "__main__":
+    
+#     print(ejecutar_resumen())
+
 
 
 

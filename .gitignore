@@ -65,3 +65,6 @@ archivos_excel/
 .DS_Store
 Thumbs.db
 *.log
+
+# Graficas generadas por el reporte (graficos/rutas_graficas.py)
+archivos_graficas/

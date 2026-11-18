@@ -167,6 +167,7 @@ def nodo_revisar_analisis_3(state:EstadoModelo_resumen_3_detalle) -> dict:
         return {"tiene_errores_analisis_3_detalle": True, "notas_auditor_analisis_3_detalle": resultaldo_revision}
 
 
+
 def corregir_errores__analisis_3(state:EstadoModelo_resumen_3_detalle) -> dict:
     print('corrigiendo errores analisis 3')
 

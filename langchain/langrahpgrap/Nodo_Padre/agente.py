@@ -52,6 +52,7 @@ grafo_continuidad = cargar_grafo("Analisis_Continuidad_Negocio_1_")
 grafo_riesgo = cargar_grafo("Analisis_evaluacion_Riesgo_2")
 grafo_cantidad = cargar_grafo("Analisis_evaluacion_cantidad_3")
 grafo_cantidad_detalle = cargar_grafo("Analisis_evaluacion_cantidad_3 _detalle")
+grafo_primera_entrega=cargar_grafo("Analisis_primera_entrega_4")
 
 
 class EstadoFlujo(TypedDict, total=False):
@@ -101,6 +102,31 @@ class EstadoFlujo(TypedDict, total=False):
     tiene_errores_analisis_3_detalle: bool
     notas_auditor_analisis_3_detalle: str
 
+    # analisis 4  (primera entrega)
+    # Los nombres deben coincidir con EstadoModelo_resumen_primera_entrega del subgrafo:
+    # LangGraph solo pasa al estado padre las claves que existen en ambos.
+    texto_analisis_primera_entrega: str
+    texto_final_analisis_primera_entrega: list
+    tiene_errores_analisis_primera_entrega: bool
+    notas_auditor_analisis_primera_entrega: str
+
+
+
+CLAVES_PRIMERA_ENTREGA = (
+    "texto_analisis_primera_entrega",
+    "texto_final_analisis_primera_entrega",
+    "tiene_errores_analisis_primera_entrega",
+    "notas_auditor_analisis_primera_entrega",
+)
+
+
+def nodo_primera_entrega(state: EstadoFlujo) -> dict:
+    # El subgrafo 4 también devuelve mes_evaluado, mes_nombre, mes_nombre_inicio y posicion_promedio,
+    # que ya existen en el estado padre (los usa la tarjeta de la sección 3). Como su universo es
+    # distinto (mes del primer recibo), solo se devuelven sus textos para no sobrescribir esos valores.
+    salida = grafo_primera_entrega.invoke({})
+    return {k: salida[k] for k in CLAVES_PRIMERA_ENTREGA if k in salida}
+
 
 builder = StateGraph(EstadoFlujo)
 
@@ -108,13 +134,15 @@ builder.add_node("continuidad_negocio", grafo_continuidad)
 builder.add_node("riesgo", grafo_riesgo)
 builder.add_node("cantidad", grafo_cantidad)
 builder.add_node("cantidad_detalle", grafo_cantidad_detalle)
+builder.add_node("primera_entrega", nodo_primera_entrega)
 
 
 builder.add_edge(START, "continuidad_negocio")
 builder.add_edge("continuidad_negocio", "riesgo")
 builder.add_edge("riesgo", "cantidad")
 builder.add_edge("cantidad", "cantidad_detalle")
-builder.add_edge("cantidad_detalle", END)
+builder.add_edge("cantidad_detalle", "primera_entrega")
+builder.add_edge("primera_entrega", END)
 
 grafo = builder.compile()
 

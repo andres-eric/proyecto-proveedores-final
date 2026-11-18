@@ -8,7 +8,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
-ROOT_DIR = Path(__file__).resolve().parent
+ROOT_DIR = Path(__file__).resolve().parent.parent  # raíz del proyecto (este script vive en ejecutar_reporte/)
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
@@ -31,9 +31,12 @@ from graficos.graficas_resumen import generar_imagen_tarjetas_kpi_desde_df, graf
 from graficos.graficas_modulo2 import graficar_modulo_2
 from graficos.graficas_analisis_cantidad import graficar_analisis_cantidad
 from graficos.graficas_modulo3 import graficar_modulo_3_desde_datos
+from graficos.rutas_graficas import ruta_grafica
+from graficos.graficas_modulo4 import graficar_primera_entrega, RUTA_EVOLUCION as RUTA_M4_EVOLUCION
 
 
-from pdf_generator.pdf_generator import generar_pdf_reporte, construir_kpis_cantidad
+from pdf_generator.pdf_generator import (generar_pdf_reporte, construir_kpis_cantidad, construir_kpis_resumen,
+                                         texto_rango_meses)
 
 
 def extraer_texto(estado, clave_final, clave_borrador):
@@ -55,22 +58,24 @@ def ejecutar_pipeline():
 
 
     print("\n[2/4] Generando gráficas (Tarjetas KPI y Volumen Mensual)...")
-    ruta_kpis = str(ROOT_DIR / "tarjetas_ejecutivas.png")
-    ruta_barras = str(ROOT_DIR / "volumen_total_mes.png")
+    ruta_kpis = ruta_grafica("tarjetas_ejecutivas.png")
+    ruta_barras = ruta_grafica("volumen_total_mes.png")
     
     generar_imagen_tarjetas_kpi_desde_df(df_historico, ruta_salida=ruta_kpis)
     graficar_distribucion_volumen_mes(df_historico, ruta_salida=ruta_barras)
     
-    print(f"  -> Gráficas creadas en la raíz del proyecto.")
+    print(f"  -> Gráficas creadas en la carpeta archivos_graficas/.")
 
-    ruta_m2_tornado = str(ROOT_DIR / "modulo2_tornado.png")
+    ruta_m2_tornado = ruta_grafica("modulo2_tornado.png")
     graficar_modulo_2(ruta_m2_tornado)
 
-    ruta_m3_cantidad = str(ROOT_DIR / "modulo3_cantidad.png")
+    ruta_m3_cantidad = ruta_grafica("modulo3_cantidad.png")
     graficar_analisis_cantidad(ruta_m3_cantidad)
 
-    ruta_m3_proveedores = str(ROOT_DIR / "modulo3_proveedores.png")
+    ruta_m3_proveedores = ruta_grafica("modulo3_proveedores.png")
     graficar_modulo_3_desde_datos(ruta_m3_proveedores)
+
+    graficar_primera_entrega(RUTA_M4_EVOLUCION)
 
 
     print("\n[3/4] Ejecutando grafo LangGraph (Generación de texto analítico)...")
@@ -79,6 +84,7 @@ def ejecutar_pipeline():
     texto_modulo_2 = extraer_texto(estado_final, "texto_final_riesgo", "borrador_riesgo")
     texto_modulo_3 = extraer_texto(estado_final, "texto_final_cantidad", "borrador_cantidad")
     texto_proveedores_cantidad = extraer_texto(estado_final, "texto_final_analisis_3_detalle", "texto_analisis_3")
+    texto_primera_entrega = extraer_texto(estado_final, "texto_final_analisis_primera_entrega", "texto_analisis_primera_entrega")
     kpis_cantidad = construir_kpis_cantidad(estado_final)
     print("  -> Textos generados por el LLM exitosamente.")
 
@@ -89,22 +95,9 @@ def ejecutar_pipeline():
     ruta_pdfs.mkdir(exist_ok=True)
     ruta_pdf_salida = str(ruta_pdfs / "Reporte_Operativo_Pipeline.pdf")
 
-    act, ant = df_historico.iloc[0], df_historico.iloc[1]
-    d_c = act['tasa_cumpli_perfecto'] - ant['tasa_cumpli_perfecto']
-    d_r = act['tasa_riesgo_critico'] - ant['tasa_riesgo_critico']
-    verde, rojo = '#16A34A', '#B91C1C'
-    kpis = [
-        {'titulo': 'Cumplimiento', 'valor': f"{act['tasa_cumpli_perfecto']:.1f}%",
-         'delta': f"{d_c:+.2f} pp vs mes anterior",
-         'color': verde if d_c >= 0 else rojo, 'acento': '#16A34A'},
-        {'titulo': 'Riesgo crítico', 'valor': f"{act['tasa_riesgo_critico']:.1f}%",
-         'delta': f"{d_r:+.2f} pp vs mes anterior",
-         'color': verde if d_r <= 0 else rojo, 'acento': '#B91C1C'},
-        {'titulo': 'Unidades defectuosas',
-         'valor': f"{int(act['cantidad_recibida_defectuosa']):,}".replace(",", "."),
-         'delta': 'Cantidad recibida defectuosa', 'color': '#6B7280', 'acento': '#EA580C'},
-    ]
-    periodo = str(act['anio-mes'])
+    kpis = construir_kpis_resumen(df_historico)
+    periodo = str(df_historico.iloc[0]['anio-mes'])
+    rango_periodo = texto_rango_meses(df_historico['anio-mes'])
 
     exito = generar_pdf_reporte(
         texto_agente=texto_agente,
@@ -120,6 +113,9 @@ def ejecutar_pipeline():
         kpis_cantidad=kpis_cantidad,
         grafica_proveedores_cantidad=ruta_m3_proveedores,
         texto_proveedores_cantidad=texto_proveedores_cantidad,
+        grafica_primera_evolucion=RUTA_M4_EVOLUCION,
+        texto_primera_entrega=texto_primera_entrega,
+        rango_periodo=rango_periodo,
     )
 
     if exito:

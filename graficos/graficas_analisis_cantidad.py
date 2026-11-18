@@ -12,20 +12,24 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-# Paleta corporativa (misma de graficas_modulo2.py)
-COLOR_LOGISTICA = "#1F4E78"   # Azul Marino Corporativo
-COLOR_TEXTO = "#1E2B33"
-COLOR_LINEA = "#5B87B0"       # azul suave para la serie
-COLOR_DESTACADO = COLOR_LOGISTICA  # mes evaluado: azul más intenso
-COLOR_PROMEDIO = "#8C969C"
-COLOR_GRID = "#E3E8EB"
+from graficos.rutas_graficas import ruta_grafica, CARPETA_GRAFICAS
+
+from graficos.tema import aplicar_tema, tamano_una_columna, leyenda_inferior, guardar
+from pdf_generator import estilos as E
+
+# Colores del informe (pdf_generator/estilos.py)
+COLOR_TEXTO = E.TEXTO_PRINCIPAL
+COLOR_LINEA = E.AZUL_MEDIO           # serie
+COLOR_DESTACADO = E.AZUL_CORPORATIVO  # mes evaluado
+COLOR_PROMEDIO = E.TEXTO_SECUNDARIO
+COLOR_GRID = E.LINEA_DIVISORA
 
 COL_MES = "anio-mes"
 COL_PCT = "porcentaje_cumplimiento_cantidad"
 COL_FALTANTES = "noCumpleCantidad"
 
 
-def graficar_modulo_3(df: pd.DataFrame, ruta_salida: str = "modulo3_cantidad.png") -> str:
+def graficar_modulo_3(df: pd.DataFrame, ruta_salida: str = ruta_grafica("modulo3_cantidad.png")) -> str:
     """
     Línea con la evolución mensual del % de órdenes que completaron la cantidad pedida.
     Recibe el DataFrame de etl.datos_analisis_cantidad_entrega.datos_historicos
@@ -36,15 +40,14 @@ def graficar_modulo_3(df: pd.DataFrame, ruta_salida: str = "modulo3_cantidad.png
     datos = datos.dropna(subset=[COL_PCT])
     datos = datos.sort_values(COL_MES, ascending=True).reset_index(drop=True)
 
-    fig, ax = plt.subplots(figsize=(10, 4.5), facecolor="white")
+    aplicar_tema()
+    fig, ax = plt.subplots(figsize=tamano_una_columna(), layout="constrained")
 
     if datos.empty:
         ax.text(0.5, 0.5, "Sin datos de cumplimiento de cantidad", ha="center", va="center",
-                fontsize=10, color=COLOR_TEXTO, transform=ax.transAxes)
+                color=COLOR_TEXTO, transform=ax.transAxes)
         ax.axis("off")
-        fig.savefig(ruta_salida, dpi=200, bbox_inches="tight", facecolor="white")
-        plt.close(fig)
-        return ruta_salida
+        return guardar(fig, ruta_salida)
 
     meses = datos[COL_MES].astype(str).tolist()
     valores = datos[COL_PCT].astype(float).tolist()
@@ -57,7 +60,7 @@ def graficar_modulo_3(df: pd.DataFrame, ruta_salida: str = "modulo3_cantidad.png
 
     # Promedio del período
     promedio = round(sum(valores) / len(valores), 1)
-    ax.axhline(promedio, color=COLOR_PROMEDIO, linestyle=(0, (4, 3)), linewidth=1.2,
+    ax.axhline(promedio, color=COLOR_PROMEDIO, linestyle=(0, (4, 3)), linewidth=1.0,
                zorder=1, label=f"Promedio del período ({promedio:.1f}%)")
 
     # Línea principal + marcadores
@@ -82,42 +85,32 @@ def graficar_modulo_3(df: pd.DataFrame, ruta_salida: str = "modulo3_cantidad.png
         if i < len(x) - 1:
             y_base = max(y_base, v + (valores[i + 1] - v) * medio_ancho)
         ax.annotate(f"{v:.1f}%\n{f} con faltantes", xy=(xi, y_base), xytext=(0, 12 if es_ultimo else 10),
-                    textcoords="offset points", ha="center", va="bottom", fontsize=8,
+                    textcoords="offset points", ha="center", va="bottom", fontsize=E.TAM_GRAFICA,
                     fontweight="bold" if es_ultimo else "normal", color=color, linespacing=1.2,
                     annotation_clip=False, zorder=5,
-                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.9))
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor=E.BLANCO, edgecolor="none", alpha=0.9))
 
     # Ejes
     ax.set_xticks(x)
-    ax.set_xticklabels(meses, fontsize=9, color=COLOR_TEXTO)
+    ax.set_xticklabels(meses)
     ax.set_xlim(-0.5, len(x) - 0.5)
     ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=6, integer=True))
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:.0f}%"))
-    ax.tick_params(axis="y", labelsize=9, colors=COLOR_TEXTO)
     ax.tick_params(axis="x", length=0, pad=6)
-    ax.set_ylabel("% de órdenes completas", fontsize=9, color=COLOR_TEXTO)
+    ax.set_ylabel("% de órdenes completas")
 
-    ax.grid(axis="y", color=COLOR_GRID, linewidth=0.8)
-    ax.set_axisbelow(True)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color("#B8C7CE")
-    ax.spines["bottom"].set_color("#B8C7CE")
+    ax.grid(axis="y")
+    ax.spines["left"].set_visible(False)
+    ax.tick_params(axis="y", length=0)
 
-    # Título con margen para las etiquetas que sobresalen cerca de 100%
-    ax.set_title("Evolución del cumplimiento de cantidad", fontsize=11, fontweight="bold",
-                 color=COLOR_LOGISTICA, pad=34)
+    # El título de la figura va en el PDF (formato APA). Las etiquetas cercanas a 100% sobresalen
+    # por arriba del eje; constrained layout les reserva espacio.
+    leyenda_inferior(fig, ncol=3, handlelength=2.2)
 
-    # Leyenda debajo del gráfico para no competir con las etiquetas
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3, frameon=False,
-              fontsize=8, labelcolor=COLOR_TEXTO)
-
-    fig.savefig(ruta_salida, dpi=200, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    return ruta_salida
+    return guardar(fig, ruta_salida)
 
 
-def graficar_analisis_cantidad(ruta_salida: str = "modulo3_cantidad.png") -> tuple:
+def graficar_analisis_cantidad(ruta_salida: str = ruta_grafica("modulo3_cantidad.png")) -> tuple:
     """Carga los datos reales (datos_historicos) y genera la gráfica. Retorna (ruta, df)."""
     from datos.carga_datos import obtener_data_set_cantidad
     from etl.datos_analisis_cantidad_entrega import instanciar_datos_cantidad

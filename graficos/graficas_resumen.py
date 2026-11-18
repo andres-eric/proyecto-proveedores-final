@@ -13,6 +13,10 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from graficos.rutas_graficas import ruta_grafica, CARPETA_GRAFICAS
+from graficos.tema import aplicar_tema, tamano_una_columna, leyenda_inferior, guardar
+from pdf_generator import estilos as E
+
 from etl.datos_analisis_resumen_general import ( datos_historicos )
 from datos.carga_datos import ( obtener_datos_completos )
 import matplotlib.pyplot as plt
@@ -23,10 +27,11 @@ from matplotlib.patches import FancyBboxPatch
 
 
 
-def generar_imagen_tarjetas_kpi_desde_df(df_kpis: pd.DataFrame, ruta_salida: str = "tarjetas_ejecutivas.png") -> str:
+def generar_imagen_tarjetas_kpi_desde_df(df_kpis: pd.DataFrame, ruta_salida: str = ruta_grafica("tarjetas_ejecutivas.png")) -> str:
     """
     Genera la imagen de tarjetas KPI ejecutivas directamente desde el DataFrame.
     """
+    aplicar_tema()
     actual = df_kpis.iloc[0]
     anterior = df_kpis.iloc[1]
 
@@ -34,17 +39,17 @@ def generar_imagen_tarjetas_kpi_desde_df(df_kpis: pd.DataFrame, ruta_salida: str
     val_cumplimiento = f"{actual['tasa_cumpli_perfecto']:.1f}%"
     delta_cumplimiento_val = actual['tasa_cumpli_perfecto'] - anterior['tasa_cumpli_perfecto']
     signo_c = "+" if delta_cumplimiento_val > 0 else ""
-    delta_cumplimiento_txt = f"{signo_c}{delta_cumplimiento_val:.2f} pp vs mes anterior"
+    delta_cumplimiento_txt = f"{signo_c}{delta_cumplimiento_val:.1f} pp vs mes anterior"
     #interp_cumplimiento = "Incremento en entregas a tiempo" if delta_cumplimiento_val >= 0 else "Deterioro en puntualidad"
-    color_delta_c = '#2e7d32' if delta_cumplimiento_val >= 0 else '#c62828'
+    color_delta_c = E.VARIACION_FAVORABLE if delta_cumplimiento_val >= 0 else E.VARIACION_DESFAVORABLE
 
     # KPI 2: Riesgo Crítico
     val_riesgo = f"{actual['tasa_riesgo_critico']:.1f}%"
     delta_riesgo_val = actual['tasa_riesgo_critico'] - anterior['tasa_riesgo_critico']
     signo_r = "+" if delta_riesgo_val > 0 else ""
-    delta_riesgo_txt = f"{signo_r}{delta_riesgo_val:.2f}  vs mes anterior"
+    delta_riesgo_txt = f"{signo_r}{delta_riesgo_val:.1f}  vs mes anterior"
     #interp_riesgo = "Reducción de riesgo critico" if delta_riesgo_val <= 0 else "Alerta: Incremento de riesgo"
-    color_delta_r = '#2e7d32' if delta_riesgo_val <= 0 else '#c62828'
+    color_delta_r = E.VARIACION_FAVORABLE if delta_riesgo_val <= 0 else E.VARIACION_DESFAVORABLE
 
 
     unidades_defectuosa = "Unidades defectuosas"
@@ -53,14 +58,14 @@ def generar_imagen_tarjetas_kpi_desde_df(df_kpis: pd.DataFrame, ruta_salida: str
     val_cantidad = f"{int(actual['cantidad_recibida_defectuosa']):,}".replace(",", ".")
 
     # Crear la figura con un tamaño más cuadrado para acomodar 2 filas
-    fig = plt.figure(figsize=(7.5, 5.5), facecolor='white')
+    fig = plt.figure(figsize=(7.5, 5.5), facecolor=E.BLANCO)
     
     # Posicionar las 3 tarjetas: 2 arriba y 1 abajo al centro
     ax1 = fig.add_axes([0.05, 0.55, 0.42, 0.40]) # Arriba izquierda
     ax2 = fig.add_axes([0.53, 0.55, 0.42, 0.40]) # Arriba derecha
     ax3 = fig.add_axes([0.29, 0.05, 0.42, 0.40]) # Abajo centro
 
-    def dibujar_tarjeta(ax, titulo, valor, delta_txt=None, interp=None, color_delta='#6c757d'):
+    def dibujar_tarjeta(ax, titulo, valor, delta_txt=None, interp=None, color_delta=E.TEXTO_SECUNDARIO):
         ax.axis('off')
         
         # Tarjeta con esquinas redondeadas usando FancyBboxPatch
@@ -68,24 +73,24 @@ def generar_imagen_tarjetas_kpi_desde_df(df_kpis: pd.DataFrame, ruta_salida: str
             (0.02, 0.02), 0.96, 0.96,
             boxstyle="round,pad=0.03,rounding_size=0.08",
             transform=ax.transAxes,
-            facecolor='white',
+            facecolor=E.BLANCO,
             edgecolor='none',
             linewidth=0
         )
         ax.add_patch(card)
 
         # Ajuste de fuentes para enfocarnos en el porcentaje de variación
-        ax.text(0.5, 0.78, titulo, fontsize=12, fontweight='bold', color='#495057', ha='center', va='center')
+        ax.text(0.5, 0.78, titulo, fontsize=12, fontweight='bold', color=E.TEXTO_SECUNDARIO, ha='center', va='center')
 
         if delta_txt or interp:
-            ax.text(0.5, 0.52, valor, fontsize=28, fontweight='heavy', color='#212529', ha='center', va='center')
+            ax.text(0.5, 0.52, valor, fontsize=28, fontweight='heavy', color=E.AZUL_CORPORATIVO, ha='center', va='center')
             if delta_txt:
                 # Variación super grande
                 ax.text(0.5, 0.25, delta_txt, fontsize=16, fontweight='bold', color=color_delta, ha='center', va='center')
             if interp:
-                ax.text(0.5, 0.10, interp, fontsize=10, color='#6c757d', ha='center', va='center', style='italic')
+                ax.text(0.5, 0.10, interp, fontsize=10, color=E.TEXTO_SECUNDARIO, ha='center', va='center', style='italic')
         else:
-            ax.text(0.5, 0.40, valor, fontsize=32, fontweight='heavy', color='#212529', ha='center', va='center')
+            ax.text(0.5, 0.40, valor, fontsize=32, fontweight='heavy', color=E.AZUL_CORPORATIVO, ha='center', va='center')
 
     dibujar_tarjeta(ax1, "CUMPLIMIENTO ", val_cumplimiento, delta_cumplimiento_txt, "", color_delta_c)
     dibujar_tarjeta(ax2, "RIESGO CRÍTICO", val_riesgo, delta_riesgo_txt, '', color_delta_r)
@@ -98,41 +103,42 @@ def generar_imagen_tarjetas_kpi_desde_df(df_kpis: pd.DataFrame, ruta_salida: str
     return ruta_salida
 
 
-def generar_tarjetas_individuales(df_kpis: pd.DataFrame, dir_salida: str = ".") -> list:
+def generar_tarjetas_individuales(df_kpis: pd.DataFrame, dir_salida: str = str(CARPETA_GRAFICAS)) -> list:
     """
     Genera 3 imágenes individuales para cada tarjeta KPI.
     Retorna lista de rutas de los archivos PNG.
     """
     import os
+    aplicar_tema()
     actual = df_kpis.iloc[0]
     anterior = df_kpis.iloc[1]
 
     rutas = []
 
-    def dibujar_tarjeta_individual(titulo, valor, delta_txt=None, interp=None, color_delta='#6c757d', nombre_archivo="kpi.png"):
-        fig, ax = plt.subplots(figsize=(3.5, 3.2), facecolor='white')
+    def dibujar_tarjeta_individual(titulo, valor, delta_txt=None, interp=None, color_delta=E.TEXTO_SECUNDARIO, nombre_archivo="kpi.png"):
+        fig, ax = plt.subplots(figsize=(3.5, 3.2), facecolor=E.BLANCO)
         ax.axis('off')
         
         card = FancyBboxPatch(
             (0.02, 0.02), 0.96, 0.96,
             boxstyle="round,pad=0.03,rounding_size=0.08",
             transform=ax.transAxes,
-            facecolor='white',
+            facecolor=E.BLANCO,
             edgecolor='none',
             linewidth=0
         )
         ax.add_patch(card)
 
-        ax.text(0.5, 0.78, titulo, fontsize=12, fontweight='bold', color='#495057', ha='center', va='center')
+        ax.text(0.5, 0.78, titulo, fontsize=12, fontweight='bold', color=E.TEXTO_SECUNDARIO, ha='center', va='center')
 
         if delta_txt or interp:
-            ax.text(0.5, 0.48, valor, fontsize=32, fontweight='heavy', color='#212529', ha='center', va='center')
+            ax.text(0.5, 0.48, valor, fontsize=32, fontweight='heavy', color=E.AZUL_CORPORATIVO, ha='center', va='center')
             if delta_txt:
                 ax.text(0.5, 0.22, delta_txt, fontsize=10, fontweight='bold', color=color_delta, ha='center', va='center')
             if interp:
-                ax.text(0.5, 0.10, interp, fontsize=8.5, color='#6c757d', ha='center', va='center', style='italic')
+                ax.text(0.5, 0.10, interp, fontsize=8.5, color=E.TEXTO_SECUNDARIO, ha='center', va='center', style='italic')
         else:
-            ax.text(0.5, 0.40, valor, fontsize=36, fontweight='heavy', color='#212529', ha='center', va='center')
+            ax.text(0.5, 0.40, valor, fontsize=36, fontweight='heavy', color=E.AZUL_CORPORATIVO, ha='center', va='center')
 
         plt.tight_layout()
         ruta = os.path.join(dir_salida, nombre_archivo)
@@ -143,18 +149,18 @@ def generar_tarjetas_individuales(df_kpis: pd.DataFrame, dir_salida: str = ".") 
     val_cumplimiento = f"{actual['tasa_cumpli_perfecto']:.1f}%"
     delta_cumplimiento_val = actual['tasa_cumpli_perfecto'] - anterior['tasa_cumpli_perfecto']
     signo_c = "+" if delta_cumplimiento_val > 0 else ""
-    delta_cumplimiento_txt = f"{signo_c}{delta_cumplimiento_val:.2f} pp vs mes anterior"
+    delta_cumplimiento_txt = f"{signo_c}{delta_cumplimiento_val:.1f} pp vs mes anterior"
     #interp_cumplimiento = "Incremento en entregas a tiempo" if delta_cumplimiento_val >= 0 else "Deterioro en puntualidad"
-    color_delta_c = '#2e7d32' if delta_cumplimiento_val >= 0 else '#c62828'
+    color_delta_c = E.VARIACION_FAVORABLE if delta_cumplimiento_val >= 0 else E.VARIACION_DESFAVORABLE
     
     rutas.append(dibujar_tarjeta_individual("CUMPLIMIENTO", val_cumplimiento, delta_cumplimiento_txt, "", color_delta_c, "kpi_cumplimiento.png"))
 
     val_riesgo = f"{actual['tasa_riesgo_critico']:.1f}%"
     delta_riesgo_val = actual['tasa_riesgo_critico'] - anterior['tasa_riesgo_critico']
     signo_r = "+" if delta_riesgo_val > 0 else ""
-    delta_riesgo_txt = f"{signo_r}{delta_riesgo_val:.2f} vs mes anterior"
+    delta_riesgo_txt = f"{signo_r}{delta_riesgo_val:.1f} vs mes anterior"
     interp_riesgo = "Reducción de riesgo critico" if delta_riesgo_val <= 0 else "Alerta: Incremento de riesgo"
-    color_delta_r = '#2e7d32' if delta_riesgo_val <= 0 else '#c62828'
+    color_delta_r = E.VARIACION_FAVORABLE if delta_riesgo_val <= 0 else E.VARIACION_DESFAVORABLE
 
     rutas.append(dibujar_tarjeta_individual("RIESGO CRÍTICO", val_riesgo, delta_riesgo_txt, interp_riesgo, color_delta_r, "kpi_riesgo.png"))
 
@@ -167,7 +173,7 @@ def generar_tarjetas_individuales(df_kpis: pd.DataFrame, dir_salida: str = ".") 
 
 
 
-def graficar_distribucion_volumen_mes(df_kpis,ruta_salida: str = "volumen_total_mes.png") -> str:
+def graficar_distribucion_volumen_mes(df_kpis,ruta_salida: str = ruta_grafica("volumen_total_mes.png")) -> str:
     """
     Genera un gráfico de barras apiladas al 100% que muestra la distribución mensual 
     de los estados de entrega (Óptimo, Riesgo, Retraso Severo, Incumplimiento) 
@@ -175,6 +181,7 @@ def graficar_distribucion_volumen_mes(df_kpis,ruta_salida: str = "volumen_total_
     Retorna la ruta del archivo PNG generado.
     """
 
+    aplicar_tema()
     df = df_kpis.sort_values(by="anio-mes", ascending=True).copy()
 
 
@@ -185,13 +192,13 @@ def graficar_distribucion_volumen_mes(df_kpis,ruta_salida: str = "volumen_total_
 
     meses = df['anio-mes'].astype(str).tolist()
 
-    fig, ax = plt.subplots(figsize=(9, 4.8), facecolor="white")
+    fig, ax = plt.subplots(figsize=tamano_una_columna(), layout="constrained")
 
     ancho_barra = 0.52
-    color_optimo = "#2ecc71"       
-    color_riesgo = "#f1c40f"       
-    color_severo = "#e67e22"       
-    color_incumplimiento = "#e74c3c" 
+    color_optimo = E.SEMAFORO_OPTIMO
+    color_riesgo = E.SEMAFORO_RIESGO
+    color_severo = E.SEMAFORO_SEVERO
+    color_incumplimiento = E.SEMAFORO_INCUMPLIMIENTO
 
     b1 = optimo
     b2 = b1 + riesgo
@@ -207,23 +214,16 @@ def graficar_distribucion_volumen_mes(df_kpis,ruta_salida: str = "volumen_total_
         if p == p1 or p == p4 :
               
             labels = [f"{val:.1f}%" if val >= 3 else "" for val in p.datavalues]
-            ax.bar_label(p, labels=labels, label_type="center", fontsize=8, color="black", fontweight="bold")
+            ax.bar_label(p, labels=labels, label_type="center", fontsize=E.TAM_GRAFICA,
+                         color=E.TEXTO_PRINCIPAL, fontweight="bold")
 
-    ax.set_yticks([])  
-    #ax.set_ylabel("Proporción del Volumen (%)", fontsize=10, fontweight="bold")
-    ax.set_title("Distribución Tasa de Cumplimiento (%)", fontsize=12, fontweight="bold", pad=12)
-    ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    ax.set_yticks([])
+    # El título de la figura va en el PDF (formato APA), no dentro de la imagen.
+    ax.tick_params(axis="x", length=0, pad=4)
+    ax.spines["left"].set_visible(False)
+    leyenda_inferior(fig, ncol=4)
 
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_visible(False)  
-    ax.yaxis.grid(True, linestyle="--", alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig(ruta_salida, dpi=300, bbox_inches="tight")
-    plt.close()
-
-    return ruta_salida
+    return guardar(fig, ruta_salida)
 
 
 if __name__ == "__main__":
