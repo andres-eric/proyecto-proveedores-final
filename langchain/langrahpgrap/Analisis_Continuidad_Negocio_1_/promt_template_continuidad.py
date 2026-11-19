@@ -4,25 +4,30 @@ import pandas as pd
 
 from pathlib import Path
 
-template_resumen ="""
+template_resumen = """
 Eres el Director de Operaciones (COO) redactando el resumen mensual de abastecimiento para los accionistas correspondiente a {mes_evaluado}.
 
 REGLAS ARQUITECTÓNICAS DEL PROMPT (CERO ALUCINACIÓN Y HECHOS PUROS):
-1. PROHIBIDO INVENTAR ACCIONES: Limítate estrictamente a reportar los números y sus definiciones operativas. NO agregues frases sobre "acciones tomadas", "consumo de inventarios" o "gestiones del equipo". 
-2. DEFINICIONES INTEGRADAS: Usa exactamente el texto que se te proporciona en el guion para explicar los indicadores.
-3. INTERPRETACIÓN DE SIGNOS MATEMÁTICOS: Si el valor de la variación es positivo, omite el signo "+" y redacta "un aumento del X%". Si el valor es negativo, omite el signo "-" y redacta "una caída del X%" o "una disminución del X%".
+1. PROHIBIDO INVENTAR: Usa únicamente los números que se te entregan. NO agregues causas, "acciones tomadas", "consumo de inventarios", "gestiones del equipo" ni recomendaciones.
+2. NÚMEROS EXACTOS: Escribe todos los números exactamente como aparecen en este prompt.
+3. SOLO PLAZOS: Esta sección mide únicamente el cumplimiento de fechas de entrega. NO menciones cantidades entregadas ni faltantes.
+4. SIGNOS DEL VOLUMEN: La variación del volumen está en porcentaje. Si es positiva, omite el signo "+" y redacta "un aumento del X%". Si es negativa, omite el signo "-" y redacta "una disminución del X%".
+5. SIGNOS DE LAS TASAS: Las variaciones de fiabilidad, cumplimiento óptimo y riesgo crítico están en puntos porcentuales. Si el valor es positivo, redacta "un aumento de X puntos porcentuales". Si es negativo, redacta "una caída de X puntos porcentuales". Si es 0, redacta "sin variación". NUNCA escribas estas variaciones con signo "+" o "-" ni con el símbolo "%".
+6. SIN CONECTORES DE CAUSA: NO uses "en consecuencia", "por lo tanto", "debido a" ni "esto se debe a". Los datos se presentan, no se explican.
 
-EL ARCO NARRATIVO OBLIGATORIO (Sigue este guion exacto, redactando UN SOLO PÁRRAFO continuo):
+EL ARCO NARRATIVO OBLIGATORIO (UN SOLO PÁRRAFO de exactamente CUATRO oraciones):
 
-1. EL ESCENARIO MATEMÁTICO:
-   Inicia indicando que durante {mes_evaluado}, la operación registró {total_volumen} ingresos de materia prima. Usa la variable de {variacion_volumen}% para indicar si hubo un aumento o disminución frente al mes anterior.
+ORACIÓN 1, EL VOLUMEN:
+   Escribe: "Durante {mes_evaluado}, la operación registró {total_volumen} ingresos de materia prima," seguido de la variación {variacion_volumen} redactada según la regla 4, y termina con " frente al mes anterior."
 
-2. EL CUMPLIMIENTO (Definición orgánica + Dato + Variación):
-   Continúa exactamente con esta idea: "De este total, solo {cumplimiento_optimo} ingresos cumplieron con las cantidades y fechas pactadas originalmente (lo que medimos como cumplimiento óptimo)." 
-   Inmediatamente después, usa la variable de {var_optimo}% para explicar si esto representa una caída o un incremento en la fiabilidad del servicio respecto al mes pasado.
+ORACIÓN 2, LA FIABILIDAD:
+   Escribe: "La fiabilidad del servicio, que mide los ingresos recibidos sin retrasos graves, se ubicó en {fiabilidad}%," seguido de la variación {var_pp_fiabilidad} redactada según la regla 5, y termina con " frente al mes anterior."
 
-3. EL RIESGO CRÍTICO (Dato + Definición orgánica):
-   Finaliza explicando el nivel de riesgo con esta frase exacta: "En consecuencia, el {tasa_riesgo}% de la operación entró en riesgo crítico, es decir, despachos que presentaron retrasos graves o incumplimientos definitivos de entrega."
+ORACIÓN 3, EL CUMPLIMIENTO ÓPTIMO:
+   Escribe: "En cuanto al plazo óptimo, {cumplimiento_optimo} ingresos ({pct_optimo}%) llegaron dentro de la fecha pactada con holgura, frente al {pct_optimo_anterior}% del mes anterior," seguido de la variación {var_pp_optimo} redactada según la regla 5, y termina con un punto.
+
+ORACIÓN 4, EL RIESGO CRÍTICO:
+   Escribe: "Por último, el {tasa_riesgo}% de la operación se ubicó en riesgo crítico, es decir, despachos que presentaron retrasos graves o incumplimientos definitivos de entrega," seguido de la variación {var_pp_riesgo} redactada según la regla 5, y termina con " frente al mes anterior."
    (DETÉNTE AQUÍ. No agregues ninguna conclusión adicional).
 
 Resumen Ejecutivo:
@@ -38,13 +43,15 @@ Lee el siguiente texto generado:
 Verifica estrictamente que el texto cumpla TODAS las siguientes reglas corporativas. Evalúa como una máquina lógica:
 
 REGLAS DE FORMATO (CRÍTICAS):
-1. Párrafo Único: ¿El texto es estrictamente UN SOLO PÁRRAFO continuo, sin ningún salto de línea (\n) ni viñetas?
-2. Signos Matemáticos: Verifica que NO existan los signos "+" ni "-" junto a los porcentajes. ¿Se usaron las frases "un aumento del" o "una caída/disminución del" correctamente?
+1. Párrafo Único: ¿El texto es estrictamente UN SOLO PÁRRAFO continuo, sin ningún salto de línea ni viñetas?
+2. Signos Matemáticos: ¿Ninguna variación tiene los signos "+" o "-" delante del número? ¿La variación del volumen está escrita en porcentaje ("un aumento del X%" o "una disminución del X%") y las variaciones de fiabilidad, plazo óptimo y riesgo crítico están escritas en "puntos porcentuales", sin el símbolo "%"? (El guion dentro del período, por ejemplo 2026-10, es correcto y NO cuenta como signo).
 
 REGLAS DE CONTENIDO Y NARRATIVA:
-3. Frases Orgánicas Exactas: ¿El texto incluye exactamente las frases "De este total, solo" y "En consecuencia, el"?
-4. Cierre Abrupto: ¿El texto termina EXACTAMENTE después de explicar el riesgo crítico de despachos? (Verifica que el modelo NO haya inventado recomendaciones, acciones tomadas ni frases de cierre como "En resumen..." o "Se recomienda...").
-5. Cero Inventos: ¿Se limitó a reportar los números sin agregar gestiones del equipo o consumo de inventarios?
+3. Frases Orgánicas: ¿El texto incluye las frases "La fiabilidad del servicio", "En cuanto al plazo óptimo" y "Por último", en ese orden?
+4. Variaciones Completas: ¿Cada uno de los cuatro indicadores (volumen, fiabilidad, plazo óptimo y riesgo crítico) va acompañado de su variación, redactada como "aumento", "caída", "disminución" o "sin variación"?
+5. Solo Plazos: ¿El texto evita mencionar cantidades entregadas, faltantes y la frase "cantidades y fechas"?
+6. Sin Conectores de Causa: ¿El texto evita "en consecuencia", "por lo tanto", "debido a" y "esto se debe a"?
+7. Cierre y Cero Inventos: ¿El texto termina EXACTAMENTE después de la oración del riesgo crítico, sin agregar recomendaciones, acciones tomadas, gestiones del equipo, consumo de inventarios ni frases como "En resumen..." o "Se recomienda..."?
 
 Si el texto CUMPLE TODAS Y CADA UNA de las reglas, responde exactamente con la palabra: "PERFECTO".
 Si el texto FALLA en al menos una regla, responde "ERROR:" seguido del número de la regla que falló y una breve explicación de qué debe corregir el escritor.

@@ -48,14 +48,21 @@ from promt_template_continuidad  import template_resumen, prompt_revision, promp
 
 
 class EstadoModelo_resumen_1(TypedDict, total=False):
+
     mes_evaluado: str
     total_volumen: str
     variacion_volumen: str
+    fiabilidad: str               
+    var_pp_fiabilidad: str        
     cumplimiento_optimo: str
     var_optimo: str
+    pct_optimo: str             
+    pct_optimo_anterior: str      
+    var_pp_optimo: str            
     tasa_riesgo: str
+    var_pp_riesgo: str
 
-    # variables de control
+    
 
     texto_final_continuidad: list
     tiene_errores_continuidad: bool
@@ -70,15 +77,23 @@ def nodo_carga_datos(state: EstadoModelo_resumen_1) -> dict:
     print("---obteniendo datos...")
 
     datos = datos_historicos(obtener_datos_completos())
-    ultimo_mes_analisis=datos[0:1]
+    # datos viene ordenado de forma descendente por 'anio-mes': fila 0 = mes evaluado, fila 1 = mes anterior
+    ultimo_mes_analisis = datos[0:1]
+    mes_anterior = datos[1:2] if len(datos) > 1 else ultimo_mes_analisis
 
     return {
         "mes_evaluado": str(ultimo_mes_analisis['anio-mes'].values[0]),
+        "fiabilidad": str(ultimo_mes_analisis['tasa_cumpli_perfecto'].values[0]),
+        "var_pp_fiabilidad": str(ultimo_mes_analisis['var_pp_fiabilidad'].values[0]),
         "var_optimo": str(ultimo_mes_analisis['var_optimo'].values[0]),
         "tasa_riesgo": format(ultimo_mes_analisis['tasa_riesgo_critico'].values[0], '.2f'),
         "total_volumen": str(ultimo_mes_analisis['total'].values[0]),
         "variacion_volumen": str(ultimo_mes_analisis['variacion_mes'].values[0]),
         "cumplimiento_optimo": str(ultimo_mes_analisis['Cumplimiento_optimo'].values[0]),
+        "pct_optimo": str(ultimo_mes_analisis['pct_optimo'].values[0]),
+        "pct_optimo_anterior": str(mes_anterior['pct_optimo'].values[0]),
+        "var_pp_optimo": str(ultimo_mes_analisis['var_pp_optimo'].values[0]),
+        "var_pp_riesgo": str(ultimo_mes_analisis['var_pp_riesgo'].values[0]),
     }
 
 
@@ -91,20 +106,33 @@ def nodo_analisis(state: EstadoModelo_resumen_1) -> dict:
     cumplimiento_optimo = state.get("cumplimiento_optimo")
     var_optimo = state.get("var_optimo")
     tasa_riesgo = state.get("tasa_riesgo")
+    pct_optimo = state.get("pct_optimo")
+    pct_optimo_anterior = state.get("pct_optimo_anterior")
+    var_pp_optimo = state.get("var_pp_optimo")
+    var_pp_riesgo = state.get("var_pp_riesgo")
+    fiabilidad = state.get("fiabilidad")
+    var_pp_fiabilidad = state.get("var_pp_fiabilidad")
 
     prompt_template = PromptTemplate(
-        input_variables=["mes_evaluado", "total_volumen", "variacion_volumen", "cumplimiento_optimo", "var_optimo", "tasa_riesgo"],
+        input_variables=["mes_evaluado", "total_volumen", "variacion_volumen", "fiabilidad", "var_pp_fiabilidad", "cumplimiento_optimo", "pct_optimo", "pct_optimo_anterior", "var_pp_optimo", "tasa_riesgo", "var_pp_riesgo"],
         template=template_resumen
     )
 
     cadena = prompt_template | llm | StrOutputParser()
     resultado = cadena.invoke({
         "mes_evaluado": mes_evaluado,
+        "fiabilidad": fiabilidad,
+        "var_pp_fiabilidad": var_pp_fiabilidad,
         "total_volumen": total_volumen,
         "variacion_volumen": variacion_volumen,
         "cumplimiento_optimo": cumplimiento_optimo,
         "var_optimo": var_optimo,
-        "tasa_riesgo": tasa_riesgo
+        "tasa_riesgo": tasa_riesgo,
+        "pct_optimo": pct_optimo,
+        "pct_optimo_anterior": pct_optimo_anterior,
+        "var_pp_optimo": var_pp_optimo,
+        "var_pp_riesgo": var_pp_riesgo
+
     })
     
     
@@ -113,9 +141,15 @@ def nodo_analisis(state: EstadoModelo_resumen_1) -> dict:
         "mes_evaluado": mes_evaluado,
         "total_volumen": total_volumen,
         "variacion_volumen": variacion_volumen,
+        "fiabilidad": fiabilidad,
+        "var_pp_fiabilidad": var_pp_fiabilidad,
         "cumplimiento_optimo": cumplimiento_optimo,
         "var_optimo": var_optimo,
-        "tasa_riesgo": tasa_riesgo, 
+        "tasa_riesgo": tasa_riesgo,
+        "pct_optimo": pct_optimo,
+        "pct_optimo_anterior": pct_optimo_anterior,
+        "var_pp_optimo": var_pp_optimo,
+        "var_pp_riesgo": var_pp_riesgo  
     }
 
 
@@ -184,18 +218,18 @@ def ejecutar_reporte() -> EstadoModelo_resumen_1:
 
     
    
-# if __name__ == "__main__":
-#     print("ejecutando el agente...")
-#     estado_final = ejecutar_reporte()
+if __name__ == "__main__":
+    print("ejecutando el agente...")
+    estado_final = ejecutar_reporte()
 
-#     texto_final_continuidad = estado_final["texto_final_continuidad"][-1] if estado_final.get("texto_final_continuidad") else estado_final.get("borrador_continuidad", "")
+    texto_final_continuidad = estado_final["texto_final_continuidad"][-1] if estado_final.get("texto_final_continuidad") else estado_final.get("borrador_continuidad", "")
 
-#     # Imprimir el texto final
-#     print("\n" + "="*80)
-#     print("TEXTO FINAL DEL ANÁLISIS:")
-#     print("="*80)
-#     print(texto_final_continuidad)
-#     print("="*80)
+    # Imprimir el texto final
+    print("\n" + "="*80)
+    print("TEXTO FINAL DEL ANÁLISIS:")
+    print("="*80)
+    print(texto_final_continuidad)
+    print("="*80)
 
 
 

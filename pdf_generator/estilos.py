@@ -35,10 +35,11 @@ ACENTO_RECURRENTE = "#C2560C"   # naranja: proveedor con incumplimiento recurren
 ROJO_CALIDAD = "#8B0000"        # guinda: defectos de calidad (sección 2), distinto de los retrasos logísticos
 
 # Semáforo de la sección 1 (los que Logística ya reconoce)
-SEMAFORO_OPTIMO = "#2ecc71"
-SEMAFORO_RIESGO = "#f1c40f"
-SEMAFORO_SEVERO = "#e67e22"
-SEMAFORO_INCUMPLIMIENTO = "#e74c3c"
+SEMAFORO_OPTIMO = AZUL_CORPORATIVO
+SEMAFORO_RIESGO = "#7FA7CF"         # azul medio claro
+SEMAFORO_INCUMPLIMIENTO = "#C0473B" # rojo ladrillo
+SEMAFORO_SEVERO = "#6E1F24"         # vino oscuro
+SIN_CLASIFICAR = "#EEF1F4"          # ingresos que el semáforo de Logística no evalúa
 
 # Variación de las tarjetas KPI (sobrios)
 VARIACION_FAVORABLE = "#2E7D4F"

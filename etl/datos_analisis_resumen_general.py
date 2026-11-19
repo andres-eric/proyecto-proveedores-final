@@ -44,16 +44,30 @@ def datos_historicos(datos=None):
     datos_resumen_1['var_ Severo']=(datos_resumen_1['Retraso_Severo'].pct_change(periods=-1) * 100).round(2).fillna(0)
     datos_resumen_1['tasa_riesgo_critico']=(datos_resumen_1['Retraso_Severo']+datos_resumen_1['Incumplimiento_de_Plazo'])/datos_resumen_1['total']*100
     datos_resumen_1['cantidad_ingresada']=datos_resumen_1['cantidad_ingresada']
-    datos_resumen_1=datos_resumen_1[['anio-mes','Cumplimiento_optimo','var_optimo','tasa_cumpli_perfecto','Retraso_Severo','var_ Severo','Riesgo_de_Retraso','var_retraso','tasa_riesgo_critico','Incumplimiento_de_Plazo','var_incumplimiento','total','variacion_mes','cantidad_ingresada','cantidad_recibida_defectuosa']]
+    datos_resumen_1['sin_clasificar'] = datos_resumen_1['total'] - (datos_resumen_1['Retraso_Severo'] + datos_resumen_1['Incumplimiento_de_Plazo'] + datos_resumen_1['Riesgo_de_Retraso'] + datos_resumen_1['Cumplimiento_optimo'])
+
+    datos_resumen_1=datos_resumen_1[['anio-mes','Cumplimiento_optimo','var_optimo','tasa_cumpli_perfecto','Retraso_Severo','var_ Severo','Riesgo_de_Retraso','var_retraso','tasa_riesgo_critico','Incumplimiento_de_Plazo','var_incumplimiento','total','variacion_mes','cantidad_ingresada','cantidad_recibida_defectuosa','sin_clasificar']]
+    datos_resumen_1['pct_optimo'] = round(datos_resumen_1['Cumplimiento_optimo'] / datos_resumen_1['total'] * 100, 1)
+    datos_resumen_1['var_pp_optimo'] = round(datos_resumen_1['pct_optimo'].diff(periods=-1), 1)
+    datos_resumen_1['var_pp_fiabilidad'] = round(datos_resumen_1['tasa_cumpli_perfecto'].diff(periods=-1), 1)
+    datos_resumen_1['var_pp_riesgo'] = round(datos_resumen_1['tasa_riesgo_critico'].round(2).diff(periods=-1), 2)
+  
+    
+    
     return datos_resumen_1
 
 
 
 
 if __name__ == "__main__":
+
+    pd.set_option('display.max_columns', None)   # muestra todas las columnas
+    pd.set_option('display.width', None)         # usa todo el ancho de la consola
+    pd.set_option('display.max_rows', None)   
     datos = obtener_datos_completos()
     df_historicos = datos_historicos(datos)
-    print(df_historicos)
+    #print(df_historicos)
+    print(df_historicos.to_string())
 
 
 

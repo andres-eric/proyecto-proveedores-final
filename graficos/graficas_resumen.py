@@ -185,43 +185,40 @@ def graficar_distribucion_volumen_mes(df_kpis,ruta_salida: str = ruta_grafica("v
     df = df_kpis.sort_values(by="anio-mes", ascending=True).copy()
 
 
-    optimo = (df['Cumplimiento_optimo'] / df['total']) * 100
-    riesgo = (df['Riesgo_de_Retraso'] / df['total']) * 100
-    severo = (df['Retraso_Severo'] / df['total']) * 100
-    incumplimiento = (df['Incumplimiento_de_Plazo'] / df['total']) * 100
-
     meses = df['anio-mes'].astype(str).tolist()
 
     fig, ax = plt.subplots(figsize=tamano_una_columna(), layout="constrained")
 
     ancho_barra = 0.52
-    color_optimo = E.SEMAFORO_OPTIMO
-    color_riesgo = E.SEMAFORO_RIESGO
-    color_severo = E.SEMAFORO_SEVERO
-    color_incumplimiento = E.SEMAFORO_INCUMPLIMIENTO
+    # (columna, leyenda, color del segmento, color del texto o None si no lleva etiqueta), de abajo hacia arriba
+    segmentos = [
+        ('Cumplimiento_optimo', "Óptimo", E.SEMAFORO_OPTIMO, E.BLANCO),
+        ('Riesgo_de_Retraso', "Riesgo de retraso", E.SEMAFORO_RIESGO, E.AZUL_CORPORATIVO),
+        ('Incumplimiento_de_Plazo', "Incumplimiento de plazo", E.SEMAFORO_INCUMPLIMIENTO, E.BLANCO),
+        ('Retraso_Severo', "Retraso severo", E.SEMAFORO_SEVERO, E.BLANCO),
+        ('sin_clasificar', "Sin clasificar", E.SIN_CLASIFICAR, None),
+    ]
 
-    b1 = optimo
-    b2 = b1 + riesgo
-    b3 = b2 + severo
+    base = pd.Series(0.0, index=df.index)
+    handles, nombres = [], []
+    for columna, etiqueta, color, color_texto in segmentos:
+        pct = (df[columna] / df['total']) * 100
+        barras = ax.bar(meses, pct, bottom=base, width=ancho_barra, label=etiqueta,
+                        color=color, edgecolor="white", linewidth=0.6)
+        if color_texto is not None:
+            etiquetas = [f"{v:.1f}%" if v >= 4 else "" for v in pct]
+            ax.bar_label(barras, labels=etiquetas, label_type="center", fontsize=E.TAM_GRAFICA - 1,
+                         color=color_texto, fontweight="bold")
+            handles.append(barras)      # "Sin clasificar" queda fuera de la leyenda
+            nombres.append(etiqueta)
+        base = base + pct
 
-    p1 = ax.bar(meses, optimo, width=ancho_barra, label="Óptimo", color=color_optimo, edgecolor="white")
-    p2 = ax.bar(meses, riesgo, bottom=b1, width=ancho_barra, label="Riesgo Retraso", color=color_riesgo, edgecolor="white")
-    p3 = ax.bar(meses, severo, bottom=b2, width=ancho_barra, label="Retraso Severo", color=color_severo, edgecolor="white")
-    p4 = ax.bar(meses, incumplimiento, bottom=b3, width=ancho_barra, label="Incumplimiento", color=color_incumplimiento, edgecolor="white")
-
-    for p in [p1, p2, p3, p4]:
-
-        if p == p1 or p == p4 :
-              
-            labels = [f"{val:.1f}%" if val >= 3 else "" for val in p.datavalues]
-            ax.bar_label(p, labels=labels, label_type="center", fontsize=E.TAM_GRAFICA,
-                         color=E.TEXTO_PRINCIPAL, fontweight="bold")
-
+    ax.set_ylim(0, 100)
     ax.set_yticks([])
     # El título de la figura va en el PDF (formato APA), no dentro de la imagen.
     ax.tick_params(axis="x", length=0, pad=4)
     ax.spines["left"].set_visible(False)
-    leyenda_inferior(fig, ncol=4)
+    leyenda_inferior(fig, handles=handles, labels=nombres, ncol=4)
 
     return guardar(fig, ruta_salida)
 

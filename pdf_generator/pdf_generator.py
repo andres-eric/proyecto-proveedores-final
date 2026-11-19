@@ -148,8 +148,9 @@ def _textos_figuras(rango, mes):
     return {
         'entregas': (
             _con_rango("Distribución mensual del cumplimiento de plazos de entrega", rango),
-            "Porcentaje de los ingresos de materia prima de cada mes según su clasificación de plazo: óptimo, "
-            f"riesgo de retraso, retraso severo e incumplimiento. {fuente}"),
+            "Porcentaje del total de ingresos de materia prima de cada mes según la clasificación del semáforo "
+            "de Logística. La zona gris corresponde a ingresos que el semáforo no evalúa. "
+            f"{fuente}"),
         'criticos': (
             _con_rango("Proveedores con más unidades con retraso logístico y con defectos de calidad", mes),
             "Unidades (und) por proveedor y material en el mes evaluado; se muestran hasta los diez proveedores "
