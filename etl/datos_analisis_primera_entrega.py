@@ -115,6 +115,32 @@ def variables_analisis_primera_entrega():
 
 
 
+def datos_detalle_primera_entrega(datos=None):
+
+    datos_=datos.copy()
+    datos_['no_cumple_primera'] = datos_['totalPrimerasEntregas'] - datos_['cantidadCumple1Entrega']
+    entrega_agrupado= datos_.groupby(['anio-mes','proveedor'],as_index=False)[['totalPrimerasEntregas','cantidadCumple1Entrega','no_cumple_primera']].sum()
+    mes=entrega_agrupado['anio-mes'].unique().tolist()
+    mes_=mes[-2]
+
+    entrega_agrupado=entrega_agrupado[entrega_agrupado['anio-mes']<=mes_]
+
+    entrega_agrupado_filtrado= entrega_agrupado[entrega_agrupado['no_cumple_primera']>0]
+    entrega_agrupado_filtrado=entrega_agrupado_filtrado.sort_values(['no_cumple_primera'],ascending=False)
+
+
+    acumulado=entrega_agrupado_filtrado.groupby(['proveedor'],as_index=False)['no_cumple_primera'].sum().sort_values(['no_cumple_primera'],ascending=False)
+
+
+
+
+
+    return acumulado
+
+
+
+
+
 def ejecutar_resumen():
 
     porcentaje_mes=variables_analisis_primera_entrega()
@@ -124,16 +150,22 @@ def ejecutar_resumen():
 
 
 
-if __name__ == "__main__":
-
-    
-    df=obtener_data_set_primera_entrega()
-    datos_historico=datos_historicos(df)
-    print(datos_historico)
-
 # if __name__ == "__main__":
+
     
-#     print(ejecutar_resumen())
+#     df=obtener_data_set_primera_entrega()
+#     datos_historico=datos_historicos(df)
+#     print(datos_historico)
+
+
+
+if __name__ == "__main__":
+    #print(ejecutar_resumen())
+    df=obtener_data_set_primera_entrega()
+    detalle=datos_detalle_primera_entrega(df)
+
+    print(detalle)
+
 
 
 

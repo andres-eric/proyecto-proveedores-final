@@ -166,8 +166,8 @@ def _textos_figuras(rango, mes):
             f"faltantes. En naranja, los proveedores con incumplimiento recurrente. {fuente}"),
         'primera_entrega': (
             _con_rango("Órdenes que requirieron entregas adicionales", rango),
-            "Órdenes cuyo primer recibo no cubrió la cantidad pedida. "
-            f"Etiqueta inferior: % de órdenes completas en el primer recibo. {fuente}"),
+            "Órdenes cuyo primera entrega no cubrió la cantidad pedida. "
+            f"Etiqueta inferior: % de órdenes completas en la primera entrega. {fuente}"),
         'proveedores_primera': (
             "Proveedores con incumplimiento en primera entrega",
             f"Órdenes de cada proveedor que requirieron entregas adicionales. {fuente}"),
@@ -565,8 +565,8 @@ def generar_pdf_reporte(texto_agente, ruta_pdf_salida, ruta_kpis=None, ruta_barr
     story.append(PageBreak())
     story += _encabezado_seccion("04", "Cumplimiento en Primera Entrega", estilos)
     story.append(Paragraph(
-        "Mide las órdenes que llegaron completas en su primer recibo. Cada orden se asigna al mes de su "
-        "primer recibo, por lo que su universo difiere del cumplimiento de cantidad.", estilos['NotaMetodologica']))
+        "Mide las órdenes que llegaron completas en su primera entrega. Cada orden se asigna al mes de su "
+        "primera entrega.", estilos['NotaMetodologica']))
     story.append(espacio())
     if texto_primera_entrega:
         story += bloque_resumen(texto_primera_entrega) + [espacio()]
