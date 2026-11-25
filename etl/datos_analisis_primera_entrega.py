@@ -10,6 +10,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 from dotenv import load_dotenv 
 from datos.carga_datos import (obtener_data_set_primera_entrega)
+from etl.datos_analisis_cantidad_entrega import ejecucion_variables_cantidad
 
 
 
@@ -118,6 +119,8 @@ def variables_analisis_primera_entrega():
 def datos_detalle_primera_entrega(datos=None):
 
     datos_=datos.copy()
+
+    fechas = sorted(datos_['anio-mes'].unique(), reverse=False)
     datos_['no_cumple_primera'] = datos_['totalPrimerasEntregas'] - datos_['cantidadCumple1Entrega']
     entrega_agrupado= datos_.groupby(['anio-mes','proveedor'],as_index=False)[['totalPrimerasEntregas','cantidadCumple1Entrega','no_cumple_primera']].sum()
     mes=entrega_agrupado['anio-mes'].unique().tolist()
@@ -127,15 +130,107 @@ def datos_detalle_primera_entrega(datos=None):
 
     entrega_agrupado_filtrado= entrega_agrupado[entrega_agrupado['no_cumple_primera']>0]
     entrega_agrupado_filtrado=entrega_agrupado_filtrado.sort_values(['no_cumple_primera'],ascending=False)
+    meses_agrupados = (entrega_agrupado_filtrado.groupby('proveedor', as_index=False).agg(meses_con_incumplimiento=('anio-mes', 'nunique'))).sort_values(['meses_con_incumplimiento'],ascending=False).reset_index(drop=True)
+    meses_agrupados=meses_agrupados[meses_agrupados['meses_con_incumplimiento']>=2]
+
+    acumulado=entrega_agrupado_filtrado.groupby(['proveedor'],as_index=False)[['no_cumple_primera','totalPrimerasEntregas']].sum().sort_values(['no_cumple_primera'],ascending=False)
+    acumulado=acumulado.reset_index(drop=True).head(10)
+    acumulado['porcentaje']=round(acumulado['no_cumple_primera']/acumulado['totalPrimerasEntregas'],2)*100
 
 
-    acumulado=entrega_agrupado_filtrado.groupby(['proveedor'],as_index=False)['no_cumple_primera'].sum().sort_values(['no_cumple_primera'],ascending=False)
+    acumulado = pd.merge(acumulado, meses_agrupados, on='proveedor', how='inner')
+
+    datos_mes= datos_[datos_['anio-mes']==mes_]
+    datos_mes= datos_mes[datos_mes['no_cumple_primera']>0]
+    agrupado_mes=datos_mes.groupby(['anio-mes','proveedor'], as_index=False)[['totalPrimerasEntregas','cantidadCumple1Entrega','no_cumple_primera']].sum()
+    agrupado_mes=agrupado_mes.sort_values(by=['no_cumple_primera'],ascending=False)
+
+    return agrupado_mes,acumulado,fechas,meses_agrupados
 
 
 
 
 
-    return acumulado
+
+def _unir_con_y(items):
+  
+    if len(items) == 1:
+        return items[0]
+    return ", ".join(items[:-1]) + " y " + items[-1]
+
+
+
+
+def variables_analisis_primera_entrega(df_mes, df_acum, fechas, meses_agrupados, datos_cantidad):
+
+    mes_maximo = fechas[-2]
+    mes_primero = fechas[0]
+    n_meses = len(fechas) - 1
+    mes_nombre = pd.to_datetime(mes_maximo).month_name(locale="es_ES").lower()
+    mes_nombre_inicio = pd.to_datetime(mes_primero).month_name(locale="es_ES").lower()
+
+    proveedor_mes = df_mes['proveedor'].tolist()
+
+   
+    if df_mes.empty:
+        texto = (f"MES Y PERÍODO:\nDurante {mes_nombre} ningún proveedor registró órdenes "
+                 f"que requirieran entregas adicionales.\n\n"
+                 f"RECURRENCIA:\n- Recurrentes: NINGUNO.")
+        return {"datos_proveedores_primera": texto}
+
+    # ---- Mes ----
+    total_mes = int(df_mes['no_cumple_primera'].sum())
+    top_5 = df_mes.head(4)
+    resto = df_mes.iloc[4:]
+
+    primero = top_5.iloc[0]
+    frase = (f"De las {total_mes} órdenes que requirieron entregas adicionales en {mes_nombre}, "
+             f"{primero['proveedor']} concentra {int(primero['no_cumple_primera'])}")
+
+    siguientes = [f"{r['proveedor']} con {int(r['no_cumple_primera'])}" for _, r in top_5.iloc[1:].iterrows()]
+    if siguientes:
+        frase += f", seguido de {_unir_con_y(siguientes)}"
+    if not resto.empty:
+        frase += (f"; las {int(resto['no_cumple_primera'].sum())} restantes se distribuyen "
+                  f"entre {len(resto)} proveedores")
+
+
+    acumulado = df_acum.loc[df_acum['no_cumple_primera'].idxmax()]
+    incumplida = (                                                     
+        f"El principal foco del período ({mes_nombre_inicio} a {mes_nombre}) es {acumulado['proveedor']}, "
+        f"con {int(acumulado['no_cumple_primera'])} de sus {int(acumulado['totalPrimerasEntregas'])} órdenes "
+        f"incompletas en el primer recibo ({acumulado['porcentaje']}%) e incumplimiento en "
+        f"{int(acumulado['meses_con_incumplimiento'])} de los {n_meses} meses analizados."
+    )
+    frase_mes = frase + ". " + incumplida                               
+
+   
+    meses_rec = meses_agrupados.loc[
+        (meses_agrupados['proveedor'].isin(proveedor_mes)) &
+        (meses_agrupados['meses_con_incumplimiento'] >= 2),              
+        ['proveedor', 'meses_con_incumplimiento']
+    ].sort_values('meses_con_incumplimiento', ascending=False)
+
+    if meses_rec.empty:
+        recurrentes_ = "- Recurrentes: NINGUNO. Los proveedores del mes son casos puntuales."
+    else:
+        partes = [f"{r['proveedor']} ({int(r['meses_con_incumplimiento'])} de {n_meses} meses)"
+                  for _, r in meses_rec.iterrows()]
+        recurrentes_ = f"- Recurrentes (fallaron en {mes_nombre} y en meses anteriores): {_unir_con_y(partes)}."
+
+    # ---- Cruce con cantidad ----                                       # CAMBIO: nuevo
+    recurrentes_cantidad = set(datos_cantidad['proveedor'].astype(str).str.strip())
+    cruce = sorted(set(meses_rec['proveedor']) & recurrentes_cantidad)
+    if cruce:
+        recurrentes_ += f"\n- Recurrentes también en cumplimiento de cantidad: {_unir_con_y(cruce)}."
+
+    # ---- Un solo texto ----                                            # CAMBIO
+    texto = (
+        "MES Y PERÍODO:\n" + frase_mes + "\n\n"
+        "RECURRENCIA:\n" + recurrentes_
+    )
+    return {"datos_proveedores_primera": texto}
+
 
 
 
@@ -148,25 +243,38 @@ def ejecutar_resumen():
     return porcentaje_mes
 
 
+def ejecutar_detalle():
 
+    df=obtener_data_set_primera_entrega()
+    detalle,agrupado,fechas,meses=datos_detalle_primera_entrega(df)
+    df_mes, df_acum, fechas=ejecucion_variables_cantidad()
+    analisis=variables_analisis_primera_entrega(detalle,agrupado,fechas,meses,df_acum)
+
+    return analisis
 
 # if __name__ == "__main__":
 
-    
 #     df=obtener_data_set_primera_entrega()
 #     datos_historico=datos_historicos(df)
 #     print(datos_historico)
 
 
 
+# if __name__ == "__main__":
+#     #print(ejecutar_resumen())
+#     df=obtener_data_set_primera_entrega()
+#     detalle,agrupado,fechas,meses=datos_detalle_primera_entrega(df)
+
+#     print(meses) 
+
+
 if __name__ == "__main__":
-    #print(ejecutar_resumen())
+
     df=obtener_data_set_primera_entrega()
-    detalle=datos_detalle_primera_entrega(df)
+    detalle,agrupado,fechas,meses=datos_detalle_primera_entrega(df)
+    df_mes, df_acum, fechas=ejecucion_variables_cantidad()
+    analisis=variables_analisis_primera_entrega(detalle,agrupado,fechas,meses,df_acum)
+    
 
-    print(detalle)
-
-
-
-
+    print(analisis)
 

@@ -145,6 +145,11 @@ def ejecucion_variables():
     df_mes, df_acum, fechas = top_cantidad_provedores(datos_agrupados(datos))
     return variables_analisis_cantidad(df_mes, df_acum, fechas)
 
+def ejecucion_variables_cantidad():
+    datos = obtener_data_set_cantidad()
+    df_mes, df_acum, fechas = top_cantidad_provedores(datos_agrupados(datos))
+    return df_mes, df_acum, fechas
+
 
 def datos_grafico_proveedores():
     """Datos para graficos.graficas_modulo3.graficar_modulo_3_proveedores (gráfico de la página 3.1 del PDF)."""
@@ -173,17 +178,18 @@ def datos_grafico_proveedores():
 
 
 
-# if __name__ == "__main__":
-#     datos = obtener_data_set_cantidad()
-#     df_historicos_mes = datos_historicos(datos_agrupados(datos))
-#     print(df_historicos_mes)
-
-
-
 if __name__ == "__main__":
-    variables = ejecucion_variables()
-    for clave, valor in variables.items():
-        print(f"{clave}: {valor}")
+    datos = obtener_data_set_cantidad()
+    df_historicos_mes = datos_historicos(datos_agrupados(datos))
+    df_mes, df_acum, fechas = top_cantidad_provedores(datos_agrupados(datos))
+    print(df_acum)
+
+
+
+# if __name__ == "__main__":
+#     variables = ejecucion_variables()
+#     for clave, valor in variables.items():
+#         print(f"{clave}: {valor}")
 
     
 
