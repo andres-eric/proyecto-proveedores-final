@@ -43,6 +43,8 @@ BASE = Path(__file__).resolve().parent.parent  # carpeta langrahpgrap, donde viv
 def cargar_grafo(carpeta: str):
     # Se carga por ruta para evitar choques de nombres entre los dos agente.py
     ruta = BASE / carpeta / "agente.py"
+    # Cada agente importa su propio promt_template_entrega: limpiar el caché para que no reuse el del anterior
+    sys.modules.pop("promt_template_entrega", None)
     spec = importlib.util.spec_from_file_location(f"ag_{carpeta}", ruta)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -53,6 +55,7 @@ grafo_riesgo = cargar_grafo("Analisis_evaluacion_Riesgo_2")
 grafo_cantidad = cargar_grafo("Analisis_evaluacion_cantidad_3")
 grafo_cantidad_detalle = cargar_grafo("Analisis_evaluacion_cantidad_3 _detalle")
 grafo_primera_entrega=cargar_grafo("Analisis_primera_entrega_4")
+grafo_primera_entrega_detalle=cargar_grafo("Analisis_primera_entrega_4_detalle copy")
 
 
 class EstadoFlujo(TypedDict, total=False):
@@ -111,6 +114,15 @@ class EstadoFlujo(TypedDict, total=False):
     notas_auditor_analisis_primera_entrega: str
 
 
+    # analisis 4  (primera entrega detalle)
+    # Los nombres deben coincidir con EstadoModelo_proveedores_primera_entrega_detalle del subgrafo
+    datos_proveedores_primera: str
+    texto_proveedores_primera: str
+    texto_final_proveedores_primera: list
+    tiene_errores_proveedores_primera: bool
+    notas_auditor_proveedores_primera: str
+
+
 
 CLAVES_PRIMERA_ENTREGA = (
     "texto_analisis_primera_entrega",
@@ -135,6 +147,7 @@ builder.add_node("riesgo", grafo_riesgo)
 builder.add_node("cantidad", grafo_cantidad)
 builder.add_node("cantidad_detalle", grafo_cantidad_detalle)
 builder.add_node("primera_entrega", nodo_primera_entrega)
+builder.add_node("primera_entrega_detalle", grafo_primera_entrega_detalle)
 
 
 builder.add_edge(START, "continuidad_negocio")
@@ -142,7 +155,8 @@ builder.add_edge("continuidad_negocio", "riesgo")
 builder.add_edge("riesgo", "cantidad")
 builder.add_edge("cantidad", "cantidad_detalle")
 builder.add_edge("cantidad_detalle", "primera_entrega")
-builder.add_edge("primera_entrega", END)
+builder.add_edge("primera_entrega", "primera_entrega_detalle")
+builder.add_edge("primera_entrega_detalle", END)
 
 grafo = builder.compile()
 

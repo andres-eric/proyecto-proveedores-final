@@ -183,9 +183,6 @@ def porcentaje_retrasos(datos):
 inspeccion,categoria = datos_modulo_2(datos, datos_completos_inspeccion)
 
 
-print(categoria)
-# print(convertir_df_a_contexto_llm(inspeccion))
-print(convertir_df_a_contexto_llm(categoria))
 
 
 

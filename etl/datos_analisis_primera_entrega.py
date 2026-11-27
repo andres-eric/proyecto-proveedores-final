@@ -71,7 +71,7 @@ def datos_historicos(datos=None):
     return datos_resumen
 
 
-def variables_analisis_primera_entrega():
+def variables_resumen_primera_entrega():
 
     df=obtener_data_set_primera_entrega()
     datos_resumen=datos_historicos(df)
@@ -238,7 +238,7 @@ def variables_analisis_primera_entrega(df_mes, df_acum, fechas, meses_agrupados,
 
 def ejecutar_resumen():
 
-    porcentaje_mes=variables_analisis_primera_entrega()
+    porcentaje_mes=variables_resumen_primera_entrega()
 
     return porcentaje_mes
 

@@ -22,7 +22,6 @@ def obtener_llm():
             #repeat_penalty=1.15,
             #num_gpu=10  # <-- Se procesarán menos capas en la Tarjeta Gráfica para no saturar la VRAM y evitar el error CUDA
         )
-        print("Modelos de Langchain para la pregunta incializado.")
         return llm_gemini_instance
     except Exception as e:
         print(f"El verdadero error al inicializar es: {type(e).__name__} - {e}")

@@ -195,6 +195,7 @@ def ejecutar_motor_ia(etl: dict) -> dict:
         "texto_3": _texto_revisado(estado, "texto_final_cantidad", "borrador_cantidad"),
         "texto_3_proveedores": _texto_revisado(estado, "texto_final_analisis_3_detalle", "texto_analisis_3"),
         "texto_4": _texto_revisado(estado, "texto_final_analisis_primera_entrega", "texto_analisis_primera_entrega"),
+        "texto_4_proveedores": _texto_revisado(estado, "texto_final_proveedores_primera", "texto_proveedores_primera"),
         "kpis_cantidad": backend["construir_kpis_cantidad"](estado),
     }
 
@@ -231,6 +232,7 @@ def generar_informe_pdf(etl: dict, ia: dict) -> bytes:
         texto_proveedores_cantidad=ia.get("texto_3_proveedores"),
         grafica_primera_evolucion=RUTA_M4_EVOLUCION,
         texto_primera_entrega=ia.get("texto_4"),
+        texto_proveedores_primera_entrega=ia.get("texto_4_proveedores"),
         rango_periodo=rango_periodo,
     )
     if not exito or not RUTA_PDF.exists():

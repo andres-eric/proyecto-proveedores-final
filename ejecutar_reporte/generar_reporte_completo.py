@@ -85,6 +85,7 @@ def ejecutar_pipeline():
     texto_modulo_3 = extraer_texto(estado_final, "texto_final_cantidad", "borrador_cantidad")
     texto_proveedores_cantidad = extraer_texto(estado_final, "texto_final_analisis_3_detalle", "texto_analisis_3")
     texto_primera_entrega = extraer_texto(estado_final, "texto_final_analisis_primera_entrega", "texto_analisis_primera_entrega")
+    texto_proveedores_primera = extraer_texto(estado_final, "texto_final_proveedores_primera", "texto_proveedores_primera")
     kpis_cantidad = construir_kpis_cantidad(estado_final)
     print("  -> Textos generados por el LLM exitosamente.")
 
@@ -115,6 +116,7 @@ def ejecutar_pipeline():
         texto_proveedores_cantidad=texto_proveedores_cantidad,
         grafica_primera_evolucion=RUTA_M4_EVOLUCION,
         texto_primera_entrega=texto_primera_entrega,
+        texto_proveedores_primera_entrega=texto_proveedores_primera,
         rango_periodo=rango_periodo,
     )
 

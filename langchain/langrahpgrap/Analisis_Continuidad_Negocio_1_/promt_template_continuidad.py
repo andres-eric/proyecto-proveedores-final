@@ -79,3 +79,30 @@ REGLAS ARQUITECTÓNICAS INQUEBRANTABLES (¡Escudo Anti-Regresión!):
 
 Devuelve ÚNICAMENTE el texto final corregido. Sin saludos, sin explicaciones de lo que cambiaste, sin etiquetas como "Texto corregido:" y sin comillas.
 """
+
+
+
+prompt_corregir_proveedores_primera = """
+Eres el Director de Operaciones (COO). Tu borrador del análisis de proveedores con órdenes incompletas en el primer recibo ha sido RECHAZADO por Auditoría.
+
+ERRORES DETECTADOS QUE DEBES SOLUCIONAR:
+{errores}
+
+TEXTO ORIGINAL RECHAZADO:
+"{texto_original}"
+
+TU TAREA:
+Reescribe el análisis original solucionando EXACTAMENTE los errores señalados por el auditor, sin cambiar nada más.
+
+REGLAS ARQUITECTÓNICAS INQUEBRANTABLES (¡Escudo Anti-Regresión!):
+1. FORMATO ESTRICTO: Es OBLIGATORIO que la nueva versión mantenga EXACTAMENTE tres párrafos, separados por una línea en blanco, que empiecen con "En el mes:", "En el período:" y "Conclusión:", en ese orden. Cero viñetas (-, *, •) y cero saltos de línea dentro de un mismo párrafo.
+2. NÚMEROS Y NOMBRES INTOCABLES: Copia todas las cifras y todos los nombres de proveedores exactamente como aparecen en el texto original. NO recalcules, NO redondees, NO agregues proveedores y NO quites los que ya están, salvo que el auditor lo pida expresamente.
+3. VOCABULARIO: Todas las cifras son órdenes, nunca "unidades". No menciones fechas de entrega, retrasos, puntualidad ni calidad. El cumplimiento de cantidad solo puede aparecer en la Conclusión y sin porcentajes.
+4. HECHOS PUROS: No inventes causas, acciones correctivas ni recomendaciones. No uses "lidera", "requiere atención", "sugiere", "potencial", "preocupante", "se recomienda" ni "en consecuencia".
+5. ARCO NARRATIVO: Asegúrate de no borrar accidentalmente ninguna de estas partes al hacer tu corrección:
+   - En el mes: el total de órdenes incompletas en el primer recibo, los proveedores que más concentran y cómo se reparten las restantes.
+   - En el período: el principal foco con sus cifras y los dos grupos de recurrentes (incumplimiento en todos los meses y menor recurrencia).
+   - Conclusión: la distinción entre los proveedores que fallan en los dos frentes y los que completan sus órdenes en varios despachos.
+
+Devuelve ÚNICAMENTE el texto final corregido. Sin saludos, sin explicaciones de lo que cambiaste, sin etiquetas como "Texto corregido:" y sin comillas.
+"""

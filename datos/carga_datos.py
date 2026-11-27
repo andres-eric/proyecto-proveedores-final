@@ -13,7 +13,6 @@ def realizar_peticion(url_api,max_intento=6,diley=5, timeout_sec=60):
         try:
             respuesta=requests.get(url_api, timeout=timeout_sec)
             if respuesta.status_code == 200:
-                print(f"intento numero {intentos}")
                 return respuesta.json(),intentos
             else:
                 print(f"intento fallido {intentos} de {max_intento}: respuesta {respuesta.status_code} ")
@@ -81,7 +80,6 @@ def obtener_datos_inspeccion():
     url_api= "http://192.168.6.105:8086/api/consultainspeccion/transformardata_table_f"
     datos_proveedores, intentos = realizar_peticion(url_api)
     if datos_proveedores is not None:
-        print(f"Datos de inspección cargados correctamente. {len(datos_proveedores)} registros.")          
         df = pd.DataFrame(datos_proveedores)
             # se filtra inspeccion nacional
         df = df[df["Nacion_importado"] == "nacional"]
@@ -103,7 +101,6 @@ def obtener_datos_inspeccion_categoria():
     datos_proveedores, intentos = realizar_peticion(url_api)
     datos_categoria, intentos_categoria = realizar_peticion(url_api_categoria)
     if datos_proveedores is not None:
-        print(f"Datos de inspección cargados correctamente. {len(datos_proveedores)} registros.")          
         df = pd.DataFrame(datos_proveedores)
         df_categoria = pd.DataFrame(datos_categoria)
             
@@ -175,7 +172,6 @@ def obtener_data_set_categoria():
     
     datos_proveedores,intentos=realizar_peticion(url_api)
     if datos_proveedores is not None:
-        print(f"Datos de categoria cargados correctamente. {len(datos_proveedores)} registros.")
         df=pd.DataFrame(datos_proveedores)
         return df
     return None
@@ -187,7 +183,6 @@ def obtener_data_set_primera_entrega():
     
     datos_proveedores,intentos=realizar_peticion(url_api)
     if datos_proveedores is not None:
-        print(f"Datos de cantidad cargados correctamente. {len(datos_proveedores)} registros.")
         df=pd.DataFrame(datos_proveedores)
         df["anio-mes"] = pd.to_datetime(df["anio"].astype(str) + "-" + df["mes"].astype(str)).dt.strftime("%Y-%m")
         return df
@@ -200,7 +195,6 @@ def obtener_data_set_cantidad():
     
     datos_proveedores,intentos=realizar_peticion(url_api)
     if datos_proveedores is not None:
-        print(f"Datos de cantidad cargados correctamente. {len(datos_proveedores)} registros.")
         df=pd.DataFrame(datos_proveedores)
         df["anio-mes"] = pd.to_datetime(df["anio"].astype(str) + "-" + df["mes"].astype(str)).dt.strftime("%Y-%m")
         return df

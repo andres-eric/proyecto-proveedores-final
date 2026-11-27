@@ -54,3 +54,54 @@ REGLAS ARQUITECTÓNICAS (CERO ALUCINACIÓN Y HECHOS PUROS):
 
 Análisis de Proveedores - Primera Entrega:
 """
+
+
+
+
+prompt_revision_proveedores_primera = """
+Eres un Auditor de Calidad implacable revisando el informe del Director de Operaciones (COO).
+Lee el siguiente texto generado:
+"{texto}"
+
+Verifica estrictamente que el texto cumpla TODAS las siguientes reglas corporativas. Evalúa como una máquina lógica:
+
+REGLAS DE FORMATO (CRÍTICAS):
+1. Tres Párrafos: ¿El texto tiene EXACTAMENTE tres párrafos separados por una línea en blanco, sin viñetas ni títulos adicionales?
+2. Etiquetas: ¿Los párrafos empiezan con "En el mes:", "En el período:" y "Conclusión:", en ese orden?
+
+REGLAS DE CONTENIDO Y NARRATIVA:
+3. Cifras con Contexto: ¿Cada cifra indica qué cuenta (órdenes incompletas en el primer recibo, total de órdenes o meses)? ¿El texto evita la palabra "unidades"?
+4. Recurrencia Coherente: ¿El párrafo "En el período" separa a los proveedores con incumplimiento en todos los meses de los de menor recurrencia, sin que un mismo proveedor aparezca en los dos grupos?
+5. Solo Primera Entrega: ¿El texto evita mencionar fechas de entrega, retrasos, puntualidad y calidad? ¿El cumplimiento de cantidad aparece solo en la Conclusión y sin porcentajes?
+6. Sin Conectores de Causa: ¿El texto evita "en consecuencia", "por lo tanto", "debido a" y "esto se debe a"?
+7. Cierre y Cero Inventos: ¿El texto termina EXACTAMENTE después de la Conclusión, sin agregar recomendaciones, acciones tomadas, causas ni frases como "En resumen..." o "Se recomienda..."? ¿Evita las palabras "lidera", "requiere atención", "sugiere", "potencial" y "preocupante"?
+
+Si el texto CUMPLE TODAS Y CADA UNA de las reglas, responde exactamente con la palabra: "PERFECTO".
+Si el texto FALLA en al menos una regla, responde "ERROR:" seguido del número de la regla que falló y una breve explicación de qué debe corregir el escritor.
+"""
+
+
+prompt_corregir_proveedores_primera = """
+Eres el Director de Operaciones (COO). Tu borrador del análisis de proveedores con órdenes incompletas en el primer recibo ha sido RECHAZADO por Auditoría.
+
+ERRORES DETECTADOS QUE DEBES SOLUCIONAR:
+{errores}
+
+TEXTO ORIGINAL RECHAZADO:
+"{texto_original}"
+
+TU TAREA:
+Reescribe el análisis original solucionando EXACTAMENTE los errores señalados por el auditor, sin cambiar nada más.
+
+REGLAS ARQUITECTÓNICAS INQUEBRANTABLES (¡Escudo Anti-Regresión!):
+1. FORMATO ESTRICTO: Es OBLIGATORIO que la nueva versión mantenga EXACTAMENTE tres párrafos, separados por una línea en blanco, que empiecen con "En el mes:", "En el período:" y "Conclusión:", en ese orden. Cero viñetas (-, *, •) y cero saltos de línea dentro de un mismo párrafo.
+2. NÚMEROS Y NOMBRES INTOCABLES: Copia todas las cifras y todos los nombres de proveedores exactamente como aparecen en el texto original. NO recalcules, NO redondees, NO agregues proveedores y NO quites los que ya están, salvo que el auditor lo pida expresamente.
+3. VOCABULARIO: Todas las cifras son órdenes, nunca "unidades". No menciones fechas de entrega, retrasos, puntualidad ni calidad. El cumplimiento de cantidad solo puede aparecer en la Conclusión y sin porcentajes.
+4. HECHOS PUROS: No inventes causas, acciones correctivas ni recomendaciones. No uses "lidera", "requiere atención", "sugiere", "potencial", "preocupante", "se recomienda" ni "en consecuencia".
+5. ARCO NARRATIVO: Asegúrate de no borrar accidentalmente ninguna de estas partes al hacer tu corrección:
+   - En el mes: el total de órdenes incompletas en el primer recibo, los proveedores que más concentran y cómo se reparten las restantes.
+   - En el período: el principal foco con sus cifras y los dos grupos de recurrentes (incumplimiento en todos los meses y menor recurrencia).
+   - Conclusión: la distinción entre los proveedores que fallan en los dos frentes y los que completan sus órdenes en varios despachos.
+
+Devuelve ÚNICAMENTE el texto final corregido. Sin saludos, sin explicaciones de lo que cambiaste, sin etiquetas como "Texto corregido:" y sin comillas.
+"""

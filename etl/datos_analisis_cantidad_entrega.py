@@ -182,7 +182,6 @@ if __name__ == "__main__":
     datos = obtener_data_set_cantidad()
     df_historicos_mes = datos_historicos(datos_agrupados(datos))
     df_mes, df_acum, fechas = top_cantidad_provedores(datos_agrupados(datos))
-    print(df_acum)
 
 
 
